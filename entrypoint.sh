@@ -2,7 +2,7 @@
 # File              : entrypoint.sh
 # Author            : Alexandre Saison <alexandre.saison@inarix.com>
 # Date              : 19.05.2021
-# Last Modified Date: 19.05.2021
+# Last Modified Date: 20.05.2021
 # Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
 if [[ -f .env ]]
 then
@@ -14,7 +14,7 @@ else
 fi
 
 echo "[$(date +"%m/%d/%y %T")] sourcing functions.sh"
-source functions.sh
+source ./functions.sh
 if [[ $? == 1 ]]
 then
     echo "Failed sourcing functions.sh"
