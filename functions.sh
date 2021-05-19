@@ -1,4 +1,9 @@
 #!/bin/bash
+# File              : functions.sh
+# Author            : Alexandre Saison <alexandre.saison@inarix.com>
+# Date              : 19.05.2021
+# Last Modified Date: 19.05.2021
+# Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
 
 function fetchEnvVariables() {
     if [[ -z $WORKER_ENV ]]
@@ -13,7 +18,7 @@ function fetchEnvVariables() {
     then
         echo "NUTSHELL_MODEL_VERSION env variable is not set !"
         exit 1
-    elif [[ -z $MODEL_VERSION]]
+    elif [[ -z $MODEL_VERSION ]]
     then
         echo "MODEL_VERSION env variable is not set !"
         exit 1

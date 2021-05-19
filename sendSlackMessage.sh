@@ -1,13 +1,17 @@
 #!/bin/bash
-# File              : .sendSlackMessage.sh
+# File              : sendSlackMessage.sh
 # Author            : Alexandre Saison <alexandre.saison@inarix.com>
 # Date              : 05.02.2021
-# Last Modified Date: 05.02.2021
+# Last Modified Date: 19.05.2021
 # Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
-export $(grep -v '^#' .env | xargs)
+if [[ -f .env ]]
+then
+  export $(grep -v '^#' .env | xargs)
+fi
 
-MESSAGE_PAYLOAD=$1
-IS_REPLY=$2
+MESSAGE_TITLE=$1
+MESSAGE_PAYLOAD=$2
+IS_REPLY=$3
 
 if [[ -n $IS_REPLY ]]
 then
@@ -15,7 +19,7 @@ then
 cat >./payload.json <<EOF
 {
   "channel": "$SLACK_CHANNEL_ID",
-  "text": "[${NUTSHELL_MODEL_SERVING_NAME}] : $MESSAGE_PAYLOAD",
+  "text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD",
   "thread_ts": $IS_REPLY
 }
 EOF
@@ -24,6 +28,7 @@ EOF
 curl -d @./payload.json \
      -X POST \
      -s \
+     --silent \
      -H "Content-Type: application/json" \
      -H "Authorization: Bearer ${SLACK_API_TOKEN}" \
      https://slack.com/api/chat.postMessage
@@ -35,7 +40,7 @@ else
 cat >./payload.json <<EOF
 {
   "channel": "$SLACK_CHANNEL_ID",
-  "text": "[${NUTSHELL_MODEL_SERVING_NAME}] : $MESSAGE_PAYLOAD"
+  "text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD"
 }
 EOF
 
@@ -43,6 +48,7 @@ EOF
 RESPONSE=`curl -d @./payload.json \
      -X POST \
      -s \
+     --silent \
      -H "Content-Type: application/json" \
      -H "Authorization: Bearer ${SLACK_API_TOKEN}" \
      https://slack.com/api/chat.postMessage`
@@ -52,7 +58,5 @@ THREAD_TS=`echo "$RESPONSE" | jq .ts`
 
 #Return script value as the THREAD_TS for future responses
 echo $THREAD_TS
-rm payload.json
 
 fi
-
