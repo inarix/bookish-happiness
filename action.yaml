@@ -1,0 +1,13 @@
+# File              : action.yaml
+# Author            : Alexandre Saison <alexandre.saison@inarix.com>
+# Date              : 18.03.2021
+# Last Modified Date: 18.03.2021
+# Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
+name: 'Bookish-Happiness'
+description: 'Push Nutshell to ArgoCD in PullRequest'
+outputs:
+  coverage: # id of output
+    description: 'Unit tests coverage'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
