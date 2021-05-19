@@ -1,4 +1,4 @@
-FROM alpine:3.10
+FROM alpine:3
 WORKDIR /app
 
 LABEL version="0.1.0"
@@ -10,9 +10,6 @@ RUN apk add ca-certificates
 
 COPY ./sendSlackMessage.sh /app/sendSlackMessage.sh
 COPY ./functions.sh /app/functions.sh
-COPY ./github_action_deploy.sh /app/github_action_deploy.sh
 COPY ./entrypoint.sh /app/entrypoint.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-
-

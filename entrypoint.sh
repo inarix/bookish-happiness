@@ -1,3 +1,5 @@
+#!/bin/bash 
+
 echo "[${date}] sourcing functions.sh"
 source functions.sh
 if [[ $? == 1 ]]
