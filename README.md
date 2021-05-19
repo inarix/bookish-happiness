@@ -3,9 +3,13 @@ Auto generated name for ArgoCD model deployment Github Action
 
 ## Outputs
 
-### `coverage`
+### `modelName`
 
-Unit test coverage when exported by yarn test!
+Name of the model that has been deployed to ArgoCD. This can be used for github comment-on-pr step.
+
+### `modelVersion`
+
+Version of the model that has been deployed to ArgoCD. This can be used for github comment-on-pr step.
 
 ## Example usage
 ```yaml
