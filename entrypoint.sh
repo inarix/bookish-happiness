@@ -9,4 +9,3 @@ DEBUG="$(cat debug.log | tail -n +6)"
 rm debug.log
 DEBUG="${DEBUG//$'\n'/'%0A'}"
 echo "::set-output name=coverage::'$DEBUG'"
-
