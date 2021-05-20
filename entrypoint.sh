@@ -5,6 +5,25 @@
 # Last Modified Date: 20.05.2021
 # Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
 
+
+if [[ -f .env ]]
+then
+  export $(grep -v '^#' .env | xargs)
+  echo "[$(date +"%m/%d/%y %T")] Exported all env variables"
+else 
+  echo "[$(date +"%m/%d/%y %T")] An error occured during import .env variables"
+  exit 1
+fi
+
+echo "[$(date +"%m/%d/%y %T")] checking functions.sh"
+
+# Creation of local variables
+APPLICATION_NAME="${NUTSHELL_MODEL_SERVING_NAME}-${WORKER_ENV}"
+MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
+MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
+
+checkEnvVariables
+
 ## FUNCTIONS
 function checkEnvVariables() {
     if [[ -z $WORKER_ENV ]]
@@ -18,14 +37,6 @@ function checkEnvVariables() {
     elif [[ -z $NUTSHELL_MODEL_VERSION ]]
     then
         echo "NUTSHELL_MODEL_VERSION env variable is not set !"
-        exit 1
-    elif [[ -z $MODEL_VERSION ]]
-    then
-        echo "MODEL_VERSION env variable is not set !"
-        exit 1
-    elif [[ -z $MODEL_NAME ]]
-    then
-        echo "MODEL_NAME env variable is not set !"
         exit 1
     elif [[ -z $NUTSHELL_MODEL_PATH ]]
     then
@@ -138,33 +149,10 @@ function hasError() {
     fi
     ! [ ! -z $1 ]
 }
-
-if [[ -f .env ]]
-then
-  export $(grep -v '^#' .env | xargs)
-  echo "[$(date +"%m/%d/%y %T")] Exported all env variables"
-else 
-  echo "[$(date +"%m/%d/%y %T")] An error occured during import .env variables"
-  exit 1
-fi
-
-echo "[$(date +"%m/%d/%y %T")] checking functions.sh"
-checkEnvVariables
-
-if [[ $? == 1 ]]
-then
-    echo "Failed sourcing functions.sh"
-    exit 1
-fi
-
 echo "[$(date +"%m/%d/%y %T")] Deploying model $MODEL_VERSION"
 echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 
 
-# Creation of local variables
-APPLICATION_NAME="${NUTSHELL_MODEL_SERVING_NAME}-${WORKER_ENV}"
-MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
-MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
 THREAD_TS=$(./sendSlackMessage.sh "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
 
 # Script starts now !
