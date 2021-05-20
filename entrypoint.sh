@@ -1,9 +1,4 @@
 #!/bin/bash 
-# File              : entrypoint.sh
-# Author            : Alexandre Saison <alexandre.saison@inarix.com>
-# Date              : 19.05.2021
-# Last Modified Date: 20.05.2021
-# Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
 if [[ -f .env ]]
 then
   export $(grep -v '^#' .env | xargs)
@@ -12,8 +7,6 @@ else
   echo "[$(date +"%m/%d/%y %T")] An error occured during import .env variables"
   exit 1
 fi
-
-env
 
 # 1. Creation of local variables
 APPLICATION_NAME="${NUTSHELL_MODEL_SERVING_NAME}-${WORKER_ENV}"
@@ -58,16 +51,16 @@ cat >./payload.json <<EOF
 EOF
 
     #Stores the response of the CURL request
-    RESPONSE=`curl -d @./payload.json \
+    RESPONSE=$(curl -d @./payload.json \
          -X POST \
          -s \
          --silent \
          -H "Content-Type: application/json" \
          -H "Authorization: Bearer ${SLACK_API_TOKEN}" \
-         https://slack.com/api/chat.postMessage`
+         https://slack.com/api/chat.postMessage)
 
     #Use the jq linux command to simply get access to the ts value for the object response from $RESPONSE
-    THREAD_TS=`echo "$RESPONSE" | jq .ts`
+    THREAD_TS=$(echo "$RESPONSE" | jq .ts)
 
     #Return script value as the THREAD_TS for future responses
     echo $THREAD_TS
@@ -96,6 +89,7 @@ function checkEnvVariables() {
 }
 
 function generateApplicationSpec() {
+echo "Generating ApplicationSpec"
 cat >./data.json <<EOF
 {
     "metadata": {
@@ -183,6 +177,7 @@ function syncApplicationSpec() {
 }
 
 function createApplicationSpec() {
+    generateApplicationSpec
     CURL_RESPONSE=$(curl -L -X POST "${ARGOCD_ENTRYPOINT}" \
      -s \
      -H 'Content-Type: application/json' \
@@ -222,7 +217,7 @@ then
     rm data.json
 else
     echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs!"
-    sendSlackMessage "MODEL_DEPLOYMENT" "Application had a error during deployment"
+    sendSlackMessage "MODEL_DEPLOYMENT" "Application had a error during deployment: $CREATE_RESPONSE"
     rm data.json
     exit 1
 fi
