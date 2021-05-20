@@ -8,6 +8,8 @@ else
   exit 1
 fi
 
+env
+
 # 1. Creation of local variables
 APPLICATION_NAME="${NUTSHELL_MODEL_SERVING_NAME}-${WORKER_ENV}"
 MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
