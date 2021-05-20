@@ -8,7 +8,6 @@ LABEL maintainer="Alexandre Saison <alexandre.saison@inarix.com>"
 
 RUN apk add ca-certificates curl
 COPY sendSlackMessage.sh /app
-COPY functions.sh /app
 COPY entrypoint.sh /app
 
 ENTRYPOINT ["sh", "/app/entrypoint.sh"]
