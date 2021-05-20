@@ -19,6 +19,61 @@ MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
 MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
 
 # 2. Declaring functions
+function sendSlackMessage() {
+    MESSAGE_TITLE=$1
+    MESSAGE_PAYLOAD=$2
+    IS_REPLY=$3
+
+    if [[ -n $IS_REPLY ]]
+    then
+
+    cat >./payload.json <<EOF
+    {
+      "channel": "$SLACK_CHANNEL_ID",
+      "text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD",
+      "thread_ts": $IS_REPLY
+    }
+EOF
+
+    #Send a simple CURL request to send the message
+    curl -d @./payload.json \
+         -X POST \
+         -s \
+         --silent \
+         -H "Content-Type: application/json" \
+         -H "Authorization: Bearer ${SLACK_API_TOKEN}" \
+         https://slack.com/api/chat.postMessage
+
+    #Returns the actual THREAD_TS stored as second argument of this script
+    echo $IS_REPLY
+    rm payload.json
+    else
+
+    cat >./payload.json <<EOF
+    {
+      "channel": "$SLACK_CHANNEL_ID",
+      "text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD"
+    }
+EOF
+
+    #Stores the response of the CURL request
+    RESPONSE=`curl -d @./payload.json \
+         -X POST \
+         -s \
+         --silent \
+         -H "Content-Type: application/json" \
+         -H "Authorization: Bearer ${SLACK_API_TOKEN}" \
+         https://slack.com/api/chat.postMessage`
+
+    #Use the jq linux command to simply get access to the ts value for the object response from $RESPONSE
+    THREAD_TS=`echo "$RESPONSE" | jq .ts`
+
+    #Return script value as the THREAD_TS for future responses
+    echo $THREAD_TS
+    rm payload.json
+    fi
+}
+
 function checkEnvVariables() {
     if [[ -z $WORKER_ENV ]]
     then 
@@ -135,29 +190,21 @@ function createApplicationSpec() {
      echo $CURL_RESPONSE
 }
 
-function hasError() {
-    if [[ -z $1 ]]
-    then
-        echo "Usage: hasError CURL_RESPONSE"
-        exit 1
-    fi
-    ! [ ! -z $1 ]
-}
-
 # 3. Script starts now
 
 echo "[$(date +"%m/%d/%y %T")] checking functions.sh"
 checkEnvVariables
 
-echo "[$(date +"%m/%d/%y %T")] Deploying model $MODEL_VERSION"
+echo "[$(date +"%m/%d/%y %T")] Deploying model $MODEL_NAME:$MODEL_VERSION"
 echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 
-THREAD_TS=$(./sendSlackMessage.sh "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
+THREAD_TS=$(sendSlackMessage.sh "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
+RESPONSE=$(createApplicationSpec | jq .)
 
-if hasError $(createApplicationSpec)
+if hasError 
 then
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
-    ./sendSlackMessage.sh "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}" $THREAD_TS
+    sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}" $THREAD_TS
     
     if hasError $(syncApplicationSpec)
     then
@@ -165,7 +212,7 @@ then
         exit 1
     fi
     echo "[$(date +"%m/%d/%y %T")] Application sync succeed!"
-    ./sendSlackMessage.sh "Model deployment of ${NUTSHELL_MODEL_SERVING_NAME} version:${MODEL_VERSION}" $THREAD_TS
+    sendSlackMessage "MODEL_DEPLOYMENT" "Model deployment of ${NUTSHELL_MODEL_SERVING_NAME} version:${MODEL_VERSION}" $THREAD_TS
 
     echo "::set-output name=modelVersion::'$MODEL_VERSION'"
     echo "::set-output name=modelName::'$MODEL_NAME'"
@@ -173,7 +220,7 @@ then
     rm data.json
 else
     echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs!"
-    ./sendSlackMessage.sh "Application had a error during deployment"
+    sendSlackMessage "MODEL_DEPLOYMENT" "Application had a error during deployment"
     rm data.json
     exit 1
 fi
