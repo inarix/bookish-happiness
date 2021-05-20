@@ -198,7 +198,7 @@ checkEnvVariables
 echo "[$(date +"%m/%d/%y %T")] Deploying model $MODEL_NAME:$MODEL_VERSION"
 echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 
-THREAD_TS=$(sendSlackMessage.sh "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
+THREAD_TS=$(sendSlackMessage "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
 RESPONSE=$(createApplicationSpec | jq .)
 
 if hasError 
