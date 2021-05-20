@@ -90,7 +90,8 @@ function checkEnvVariables() {
 
 function generateApplicationSpec() {
 echo "Generating ApplicationSpec"
-cat >./data.json <<EOF {
+cat >./data.json <<EOF 
+{
     "metadata": {
         "name": "$APPLICATION_NAME",
         "namespace": "default"
