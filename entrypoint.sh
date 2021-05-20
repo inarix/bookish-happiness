@@ -13,6 +13,8 @@ else
   exit 1
 fi
 
+env
+
 # 1. Creation of local variables
 APPLICATION_NAME="${NUTSHELL_MODEL_SERVING_NAME}-${WORKER_ENV}"
 MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
@@ -20,40 +22,39 @@ MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
 
 # 2. Declaring functions
 function sendSlackMessage() {
-    MESSAGE_TITLE=$1
-    MESSAGE_PAYLOAD=$2
-    IS_REPLY=$3
+MESSAGE_TITLE=$1
+MESSAGE_PAYLOAD=$2
+IS_REPLY=$3
+echo "Sending $MESSAGE_TITLE with Payload $MESSAGE_PAYLOAD with/without reply $IS_REPLY"
 
-    if [[ -n $IS_REPLY ]]
-    then
-
-    cat >./payload.json <<EOF
-    {
-      "channel": "$SLACK_CHANNEL_ID",
-      "text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD",
-      "thread_ts": $IS_REPLY
-    }
+if [[ -n $IS_REPLY ]]
+then
+cat >./payload.json <<EOF
+{
+    "channel": "$SLACK_CHANNEL_ID",
+    "text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD",
+    "thread_ts": $IS_REPLY
+}
 EOF
+#Send a simple CURL request to send the message
 
-    #Send a simple CURL request to send the message
-    curl -d @./payload.json \
-         -X POST \
-         -s \
-         --silent \
-         -H "Content-Type: application/json" \
-         -H "Authorization: Bearer ${SLACK_API_TOKEN}" \
-         https://slack.com/api/chat.postMessage
+curl -d @./payload.json \
+    -X POST \
+    -s \
+    --silent \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${SLACK_API_TOKEN}" \
+    https://slack.com/api/chat.postMessage
 
-    #Returns the actual THREAD_TS stored as second argument of this script
-    echo $IS_REPLY
-    rm payload.json
-    else
-
-    cat >./payload.json <<EOF
-    {
-      "channel": "$SLACK_CHANNEL_ID",
-      "text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD"
-    }
+#Returns the actual THREAD_TS stored as second argument of this script
+echo $IS_REPLY
+rm payload.json
+else
+cat >./payload.json <<EOF
+{
+"channel": "$SLACK_CHANNEL_ID",
+"text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD"
+}
 EOF
 
     #Stores the response of the CURL request
