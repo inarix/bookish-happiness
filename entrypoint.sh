@@ -4,8 +4,6 @@
 # Date              : 19.05.2021
 # Last Modified Date: 20.05.2021
 # Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
-
-
 if [[ -f .env ]]
 then
   export $(grep -v '^#' .env | xargs)
@@ -15,16 +13,12 @@ else
   exit 1
 fi
 
-echo "[$(date +"%m/%d/%y %T")] checking functions.sh"
-
-# Creation of local variables
+# 1. Creation of local variables
 APPLICATION_NAME="${NUTSHELL_MODEL_SERVING_NAME}-${WORKER_ENV}"
 MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
 MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
 
-checkEnvVariables
-
-## FUNCTIONS
+# 2. Declaring functions
 function checkEnvVariables() {
     if [[ -z $WORKER_ENV ]]
     then 
@@ -149,13 +143,17 @@ function hasError() {
     fi
     ! [ ! -z $1 ]
 }
+
+# 3. Script starts now
+
+echo "[$(date +"%m/%d/%y %T")] checking functions.sh"
+checkEnvVariables
+
 echo "[$(date +"%m/%d/%y %T")] Deploying model $MODEL_VERSION"
 echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 
-
 THREAD_TS=$(./sendSlackMessage.sh "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
 
-# Script starts now !
 if hasError $(createApplicationSpec)
 then
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
