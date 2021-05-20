@@ -199,9 +199,9 @@ echo "[$(date +"%m/%d/%y %T")] Deploying model $MODEL_NAME:$MODEL_VERSION"
 echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 
 THREAD_TS=$(sendSlackMessage "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
-RESPONSE=$(createApplicationSpec | jq .)
+RESPONSE=$(createApplicationSpec | jq .error)
 
-if hasError 
+if [[ ! -z RESPONSE ]]
 then
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
     sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}" $THREAD_TS
