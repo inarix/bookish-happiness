@@ -8,4 +8,4 @@ LABEL maintainer="Alexandre Saison <alexandre.saison@inarix.com>"
 RUN apk add ca-certificates curl
 COPY entrypoint.sh /entrypoint.sh
 
-ENTRYPOINT ["sh", "-c", "/entrypoint.sh"]
+ENTRYPOINT ["sh", "/entrypoint.sh"]
