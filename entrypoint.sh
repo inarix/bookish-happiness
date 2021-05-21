@@ -9,9 +9,9 @@ else
 fi
 
 # 1. Creation of local variables
-export APPLICATION_NAME="${NUTSHELL_MODEL_SERVING_NAME}-${WORKER_ENV}"
 export MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
 export MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
+export APPLICATION_NAME="$WORKER_ENV-mt-$MODEL_NAME-$MODEL_VERSION"
 
 env
 
@@ -25,9 +25,9 @@ if [[ -n $IS_REPLY ]]
 then
 cat >./payload.json <<EOF
 {
-    "channel": "$SLACK_CHANNEL_ID",
-    "text": "[$MESSAGE_TITLE] : $MESSAGE_PAYLOAD",
-    "thread_ts": "$IS_REPLY"
+"channel": "$SLACK_CHANNEL_ID",
+"text": "[$MESSAGE_TITLE] : $MESSAGE_PAYLOAD",
+"thread_ts": "$IS_REPLY"
 }
 EOF
 #Send a simple CURL request to send the message
@@ -122,7 +122,6 @@ function checkEnvVariables() {
 }
 
 function generateApplicationSpec() {
-echo "Generating ApplicationSpec"
 cat > data.json <<EOF 
 { "metadata": { "name": "$APPLICATION_NAME", "namespace": "default" },
   "spec": { "source": {
@@ -196,17 +195,17 @@ fi
 HAS_ERROR=$(echo $CREATE_RESPONSE | jq .error )
 echo "CreateResponse=$CREATE_RESPONSE"
 
-if [[ ! -z $HAS_ERROR ]]
+if [[ -n $HAS_ERROR ]]
 then
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
     sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}" $THREAD_TS
     SYNC_RESPONSE=$(syncApplicationSpec)
     HAS_ERROR=$(echo $SYNC_RESPONSE | jq .error )
-    echo "SyncResponse=$SYNC_RESPONSE"
+    echo "SyncResponse=$HAS_ERROR"
     
-    if [[ ! -z $HAS_ERROR ]]
+    if [[ -n $HAS_ERROR ]]
     then
-        echo "[$(date +"%m/%d/%y %T")] An error occured during applicaion sync! Error: $SYNC_RESPONSE"
+        echo "[$(date +"%m/%d/%y %T")] An error occured during applicaion sync! Error: $HAS_ERROR"
         exit 1
     fi
     echo "[$(date +"%m/%d/%y %T")] Application sync succeed!"
