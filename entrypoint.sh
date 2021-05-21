@@ -132,7 +132,7 @@ cat > data.json <<EOF
                 "parameters": [
                     { "name": "app.datadog.apiKey", "value": "$DD_API_KEY" },
                     { "name": "app.datadog.appKey", "value": "$DD_APP_KEY" },
-                    { "name": "app.workerEnv", "value": "$WORKER_ENV" },
+                    { "name": "app.env", "value": "$WORKER_ENV" },
                     { "name": "credentials.api.password", "value": "$INARIX_PASSWORD" },
                     { "name": "credentials.api.username", "value": "$INARIX_USERNAME" },
                     { "name": "credentials.aws.accessKey", "value": "$AWS_ACCESS_KEY_ID" },
@@ -141,7 +141,11 @@ cat > data.json <<EOF
                     { "name": "image.version", "value": "$MODEL_VERSION" },
                     { "name": "model.modelName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
                     { "name": "model.nutshellName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
-                    { "name":"nodeSelector.name", "value": "serving-$WORKER_ENV" },
+                    { "name": "model.servingMode", "value": "$NUTSHELL_MODE" },
+                    { "name": "nodeSelector.name", "value": "serving-$WORKER_ENV" },
+                    { "name": "nutshell.fileLocationId", "value": "$NUTSHELL_WORKER_MODEL_FILE_LOC_ID" },
+                    { "name": "nutshell.timeoutS", "value": "$NUTSHELL_WORKER_MODEL_PREDICT_TIMEOUT_S" },
+                    { "name": "nutshell.worker.env", "value": "$WORKER_ENV" },
                     { "name": "model.path", "value": "$NUTSHELL_MODEL_PATH" }
                 ]
             },
