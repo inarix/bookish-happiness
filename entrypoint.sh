@@ -206,7 +206,7 @@ then
     rm data.json
 else
     echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs!"
-    sendSlackMessage "MODEL_DEPLOYMENT" "Application had a error during deployment: $CREATE_RESPONSE"
+    sendSlackMessage "MODEL_DEPLOYMENT" "Application had a error during deployment: $CREATE_RESPONSE" $THREAD_TS
     rm data.json
     exit 1
 fi
