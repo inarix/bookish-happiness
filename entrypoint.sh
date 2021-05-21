@@ -93,7 +93,7 @@ function checkEnvVariables() {
 function generateApplicationSpec() {
 echo "Generating ApplicationSpec"
 cat > data.json <<EOF 
-{ "metadata": { "name": "$(APPLICATION_NAME)", "namespace": "WORKER_ENV" },
+{ "metadata": { "name": "${APPLICATION_NAME}", "namespace": "WORKER_ENV" },
   "spec": { "source": {
             "repoURL": "https://charts.inarix.com",
             "targetRevision": "$MODEL_HELM_CHART_VERSION",
