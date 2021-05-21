@@ -8,7 +8,6 @@ else
   exit 1
 fi
 
-
 # 1. Creation of local variables
 export APPLICATION_NAME="${NUTSHELL_MODEL_SERVING_NAME}-${WORKER_ENV}"
 export MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
@@ -74,7 +73,7 @@ EOF
 function checkEnvVariables() {
     if [[ -z $WORKER_ENV ]]
     then 
-        echo "WORKER env variable is not set !"
+        echo "WORKER env variable is not set ! (Required to push to ArgoCD)"
         exit 1
     elif [[ -z $NUTSHELL_MODEL_SERVING_NAME ]]
     then
@@ -84,9 +83,41 @@ function checkEnvVariables() {
     then
         echo "NUTSHELL_MODEL_VERSION env variable is not set !"
         exit 1
+    elif [[ -z $MODEL_HELM_CHART_VERSION ]]
+    then
+        echo "MODEL_HELM_CHART_VERSION env variable is not set ! (Required to push to ArgoCD)"
+        exit 1
+    elif [[ -z $MODEL_HELM_CHART_VERSION ]]
+    then
+        echo "MODEL_HELM_CHART_VERSION env variable is not set ! (Required to push to ArgoCD)"
+        exit 1
+    elif [[ -z $DD_API_KEY ]]
+    then
+        echo "DD_API_KEY env variable is not set ! (Required to push to ArgoCD)"
+        exit 1
+    elif [[ -z $DD_APP_KEY ]]
+    then
+        echo "DD_APP_KEY env variable is not set ! (Required to push to ArgoCD)"
+        exit 1
+    elif [[ -z $INARIX_PASSWORD ]]
+    then
+        echo "INARIX_PASSWORD env variable is not set ! (Required to push to ArgoCD)"
+        exit 1
+    elif [[ -z $INARIX_USERNAME ]]
+    then
+        echo "INARIX_USERNAME env variable is not set ! (Required to push to ArgoCD)"
+        exit 1
+    elif [[ -z $AWS_ACCESS_KEY_ID ]]
+    then
+        echo "AWS_ACCESS_KEY_ID env variable is not set ! (Required to push to ArgoCD)"
+        exit 1
+    elif [[ -z $AWS_SECRET_ACCESS_KEY ]]
+    then
+        echo "AWS_SECRET_ACCESS_KEY env variable is not set ! (Required to push to ArgoCD)"
+        exit 1
     elif [[ -z $NUTSHELL_MODEL_PATH ]]
     then
-        echo "NUTSHELL_MODEL_PATH env variable is not set !"
+        echo "NUTSHELL_MODEL_PATH env variable is not set ! (Required to push to ArgoCD)"
         exit 1
     fi
 }
@@ -94,7 +125,7 @@ function checkEnvVariables() {
 function generateApplicationSpec() {
 echo "Generating ApplicationSpec"
 cat > data.json <<EOF 
-{ "metadata": { "name": "${APPLICATION_NAME}", "namespace": "WORKER_ENV" },
+{ "metadata": { "name": "${APPLICATION_NAME}", "namespace": "${WORKER_ENV}" },
   "spec": { "source": {
             "repoURL": "https://charts.inarix.com",
             "targetRevision": "$MODEL_HELM_CHART_VERSION",
