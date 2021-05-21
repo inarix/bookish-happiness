@@ -27,7 +27,7 @@ cat >./payload.json <<EOF
 {
     "channel": "$SLACK_CHANNEL_ID",
     "text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD",
-    "thread_ts": $IS_REPLY
+    "thread_ts": "$IS_REPLY"
 }
 EOF
 #Send a simple CURL request to send the message
