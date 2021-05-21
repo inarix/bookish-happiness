@@ -172,7 +172,7 @@ function createApplicationSpec() {
      -H 'Content-Type: application/json' \
      -H "Authorization: Bearer ${ARGOCD_TOKEN}" \
      -d @./data.json)
-     echo $CURL_RESPONSE
+     echo $CURL_RESPONSE | jq
 }
 
 # 3. Script starts now
@@ -184,15 +184,19 @@ echo "[$(date +"%m/%d/%y %T")] Deploying model $MODEL_NAME:$MODEL_VERSION"
 echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 
 THREAD_TS=$(sendSlackMessage "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
-CREATE_RESPONSE=$(createApplicationSpec | jq .error)
+CREATE_RESPONSE=$(createApplicationSpec)
+HAS_ERROR=$(echo $CREATE_RESPONSE | jq .error )
+echo "CreateResponse=$CREATE_RESPONSE"
 
-if [[ ! -z $CREATE_RESPONSE ]]
+if [[ ! -z $HAS_ERROR ]]
 then
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
     sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}" $THREAD_TS
-    SYNC_RESPONSE=$(syncApplicationSpec | jq .error )
+    SYNC_RESPONSE=$(syncApplicationSpec)
+    HAS_ERROR=$(echo $SYNC_RESPONSE | jq .error )
+    echo "SyncResponse=$SYNC_RESPONSE"
     
-    if [[ ! -z $SYNC_RESPONSE ]]
+    if [[ ! -z $HAS_ERROR ]]
     then
         echo "[$(date +"%m/%d/%y %T")] An error occured during applicaion sync!"
         exit 1
