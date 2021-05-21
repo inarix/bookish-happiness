@@ -124,7 +124,7 @@ function checkEnvVariables() {
 function generateApplicationSpec() {
 echo "Generating ApplicationSpec"
 cat > data.json <<EOF 
-{ "metadata": { "name": "$APPLICATION_NAME}", "namespace": "$WORKER_ENV" },
+{ "metadata": { "name": "$APPLICATION_NAME", "namespace": "default" },
   "spec": { "source": {
             "repoURL": "https://charts.inarix.com",
             "targetRevision": "$MODEL_HELM_CHART_VERSION",
@@ -164,7 +164,7 @@ function syncApplicationSpec() {
 
 function createApplicationSpec() {
     generateApplicationSpec
-    cat data.json
+    
     CURL_RESPONSE=$(curl -L -X POST "${ARGOCD_ENTRYPOINT}" \
     -H 'Content-Type: application/json' \
     -H "Authorization: Bearer ${ARGOCD_TOKEN}" \
