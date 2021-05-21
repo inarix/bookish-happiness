@@ -20,7 +20,6 @@ function sendSlackMessage() {
 MESSAGE_TITLE=$1
 MESSAGE_PAYLOAD=$2
 IS_REPLY=$3
-echo "Sending $MESSAGE_TITLE with Payload $MESSAGE_PAYLOAD with/without reply $IS_REPLY"
 
 if [[ -n $IS_REPLY ]]
 then
@@ -41,7 +40,7 @@ curl -d @./payload.json \
     -H "Authorization: Bearer ${SLACK_API_TOKEN}" \
     https://slack.com/api/chat.postMessage
 
-#Returns the actual THREAD_TS stored as second argument of this script
+#Returns the actual THREAD_TS stored as third argument of this script
 echo $IS_REPLY
 rm payload.json
 else
@@ -185,6 +184,13 @@ echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 
 THREAD_TS=$(sendSlackMessage "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
 CREATE_RESPONSE=$(createApplicationSpec)
+
+if [[ $? == 1 ]]
+then
+    sendSlackMessage "MODEL_DEPLOYMENT" "Application had a error when creating ApplicatinSpec: $CREATE_RESPONSE" $THREAD_TS
+    exit 1
+fi
+
 HAS_ERROR=$(echo $CREATE_RESPONSE | jq .error )
 echo "CreateResponse=$CREATE_RESPONSE"
 
