@@ -26,7 +26,7 @@ then
 cat >./payload.json <<EOF
 {
     "channel": "$SLACK_CHANNEL_ID",
-    "text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD",
+    "text": "[$MESSAGE_TITLE] : $MESSAGE_PAYLOAD",
     "thread_ts": "$IS_REPLY"
 }
 EOF
@@ -44,8 +44,7 @@ curl -d @./payload.json \
 echo $IS_REPLY
 rm payload.json
 else
-cat >./payload.json <<EOF
-{
+cat >./payload.json <<EOF {
 "channel": "$SLACK_CHANNEL_ID",
 "text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD"
 }
@@ -160,7 +159,7 @@ function syncApplicationSpec() {
     -s \
     -H 'Content-Type: application/json' \
     -H "Authorization: Bearer ${ARGOCD_TOKEN}")
-    echo $CURL_RESPONSE | jq
+    echo $CURL_RESPONSE
 }
 
 function createApplicationSpec() {
@@ -171,7 +170,7 @@ function createApplicationSpec() {
      -H 'Content-Type: application/json' \
      -H "Authorization: Bearer ${ARGOCD_TOKEN}" \
      -d @./data.json)
-     echo $CURL_RESPONSE | jq
+     echo $CURL_RESPONSE
 }
 
 # 3. Script starts now
@@ -204,7 +203,7 @@ then
     
     if [[ ! -z $HAS_ERROR ]]
     then
-        echo "[$(date +"%m/%d/%y %T")] An error occured during applicaion sync!"
+        echo "[$(date +"%m/%d/%y %T")] An error occured during applicaion sync! Error: $SYNC_RESPONSE"
         exit 1
     fi
     echo "[$(date +"%m/%d/%y %T")] Application sync succeed!"
@@ -215,7 +214,7 @@ then
     echo "[$(date +"%m/%d/%y %T")] Removing generated data.json!"
     rm data.json
 else
-    echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs!"
+    echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs! Error: $CREATE_RESPONSE"
     sendSlackMessage "MODEL_DEPLOYMENT" "Application had a error during deployment: $CREATE_RESPONSE" $THREAD_TS
     rm data.json
     exit 1
