@@ -44,7 +44,8 @@ curl -d @./payload.json \
 echo $IS_REPLY
 rm payload.json
 else
-cat >./payload.json <<EOF {
+cat >./payload.json <<EOF 
+{
 "channel": "$SLACK_CHANNEL_ID",
 "text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD"
 }
@@ -123,7 +124,7 @@ function checkEnvVariables() {
 function generateApplicationSpec() {
 echo "Generating ApplicationSpec"
 cat > data.json <<EOF 
-{ "metadata": { "name": "${APPLICATION_NAME}", "namespace": "${WORKER_ENV}" },
+{ "metadata": { "name": "$APPLICATION_NAME}", "namespace": "$WORKER_ENV" },
   "spec": { "source": {
             "repoURL": "https://charts.inarix.com",
             "targetRevision": "$MODEL_HELM_CHART_VERSION",
@@ -156,7 +157,6 @@ EOF
 
 function syncApplicationSpec() {
     RESPONSE=$(curl -L -X POST "${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}/sync" \
-    -s \
     -H 'Content-Type: application/json' \
     -H "Authorization: Bearer ${ARGOCD_TOKEN}")
     echo $CURL_RESPONSE
@@ -166,11 +166,10 @@ function createApplicationSpec() {
     generateApplicationSpec
     cat data.json
     CURL_RESPONSE=$(curl -L -X POST "${ARGOCD_ENTRYPOINT}" \
-     -s \
-     -H 'Content-Type: application/json' \
-     -H "Authorization: Bearer ${ARGOCD_TOKEN}" \
-     -d @./data.json)
-     echo $CURL_RESPONSE
+    -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer ${ARGOCD_TOKEN}" \
+    -d @./data.json)
+    echo $CURL_RESPONSE
 }
 
 # 3. Script starts now
