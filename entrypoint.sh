@@ -1,4 +1,9 @@
 #!/bin/bash 
+# File              : entrypoint.sh
+# Author            : Alexandre Saison <alexandre.saison@inarix.com>
+# Date              : 25.05.2021
+# Last Modified Date: 25.05.2021
+# Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
 if [[ -f .env ]]
 then
   export $(grep -v '^#' .env | xargs)
@@ -11,7 +16,7 @@ fi
 # 1. Creation of local variables
 export MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
 export MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
-export APPLICATION_NAME="$WORKER_ENV-mt-$MODEL_NAME-$MODEL_VERSION"
+export APPLICATION_NAME="$WORKER_ENV-mt-$MODEL_NAME"
 
 env
 
