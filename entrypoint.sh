@@ -127,7 +127,14 @@ function checkEnvVariables() {
 }
 
 function generateApplicationSpec() {
-cat > data.json <<EOF 
+  
+  local NODE_SELECTOR="nutshell"
+  if [[ $WORKER_ENV == "staging" ]]
+  then
+    NODE_SELECTOR="$NODE_SELECTOR-$WORKER_ENV"
+  fi
+
+  cat > data.json <<EOF 
 { "metadata": { "name": "$APPLICATION_NAME", "namespace": "default" },
   "spec": { "source": {
             "repoURL": "https://charts.inarix.com",
@@ -146,7 +153,7 @@ cat > data.json <<EOF
                     { "name": "model.modelName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
                     { "name": "model.nutshellName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
                     { "name": "model.servingMode", "value": "$NUTSHELL_MODE" },
-                    { "name": "nodeSelector.name", "value": "serving-$WORKER_ENV" },
+                    { "name": "nodeSelector.name", "value": "$NODE_SELECTOR" },
                     { "name": "nutshell.fileLocationId", "value": "$NUTSHELL_WORKER_MODEL_FILE_LOC_ID" },
                     { "name": "nutshell.timeoutS", "value": "$NUTSHELL_WORKER_MODEL_PREDICT_TIMEOUT_S" },
                     { "name": "nutshell.worker.env", "value": "$WORKER_ENV" },
