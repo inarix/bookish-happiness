@@ -1,0 +1,15 @@
+# File              : action.yaml
+# Author            : Alexandre Saison <alexandre.saison@inarix.com>
+# Date              : 18.03.2021
+# Last Modified Date : 19.05.2021
+# Last Modified By   : Alexandre Saison <alexandre.saison@inarix.com>
+name: 'Bookish-Happiness'
+description: 'Push Nutshell to ArgoCD in PullRequest'
+outputs:
+  modelVersion: # id of output
+    description: 'Version of model deployed to ArgoCD'
+  modelName: # id of output
+    description: 'Name of model deployed to ArgoCD'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
