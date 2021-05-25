@@ -18,8 +18,6 @@ export MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
 export MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
 export APPLICATION_NAME="$WORKER_ENV-mt-$MODEL_NAME"
 
-env
-
 # 2. Declaring functions
 function sendSlackMessage() {
 MESSAGE_TITLE=$1
@@ -134,6 +132,9 @@ function generateApplicationSpec() {
     NODE_SELECTOR="$NODE_SELECTOR-$WORKER_ENV"
   fi
 
+  local VERSION="${MODEL_VERSION:1}"
+
+
   cat > data.json <<EOF 
 { "metadata": { "name": "$APPLICATION_NAME", "namespace": "default" },
   "spec": { "source": {
@@ -149,7 +150,7 @@ function generateApplicationSpec() {
                     { "name": "credentials.aws.accessKey", "value": "$AWS_ACCESS_KEY_ID" },
                     { "name": "credentials.aws.secretKey", "value": "$AWS_SECRET_ACCESS_KEY" },
                     { "name": "image.imageName", "value": "$MODEL_NAME" },
-                    { "name": "image.version", "value": "$MODEL_VERSION" },
+                    { "name": "image.version", "value": "$VERSION" },
                     { "name": "model.modelName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
                     { "name": "model.nutshellName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
                     { "name": "model.servingMode", "value": "$NUTSHELL_MODE" },
