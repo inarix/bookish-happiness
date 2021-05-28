@@ -2,7 +2,7 @@
 # File              : entrypoint.sh
 # Author            : Alexandre Saison <alexandre.saison@inarix.com>
 # Date              : 25.05.2021
-# Last Modified Date: 25.05.2021
+# Last Modified Date: 27.05.2021
 # Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
 if [[ -f .env ]]
 then
@@ -17,59 +17,73 @@ fi
 export MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
 export MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
 export APPLICATION_NAME="$WORKER_ENV-mt-$MODEL_NAME"
+export REPOSITORY=$(echo "$GITHUB_REPOSITORY" | cut -d "/" -f2)
 
 # 2. Declaring functions
-function sendSlackMessage() {
-MESSAGE_TITLE=$1
-MESSAGE_PAYLOAD=$2
-IS_REPLY=$3
+function registerModel {
+  THREAD_TS=$1
+  
+  cat modelDeploymentPayload.json
+  
+  if [[ $WORKER_ENV == "staging" ]]
+  then
+    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"${NUTSHELL_MODEL_VERSION}-staging\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:${NUTSHELL_MODEL_VERSION}-staging\", \"metadata\": {}}" > ./modelDeploymentPayload.json
+    RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${STAGING_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://staging.api.inarix.com/imodels/model-instance)
+  else
+    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"$NUTSHELL_MODEL_VERSION\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:$NUTSHELL_MODEL_VERSION\", \"metadata\": {}}" > ./modelDeploymentPayload.json
+    RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
+  fi
 
-if [[ -n $IS_REPLY ]]
-then
-cat >./payload.json <<EOF
-{
-"channel": "$SLACK_CHANNEL_ID",
-"text": "[$MESSAGE_TITLE] : $MESSAGE_PAYLOAD",
-"thread_ts": "$IS_REPLY"
+  RESPONSE_CODE=$(echo "$RESPONSE" | jq .code )
+  
+  if [[ -n $RESPONSE_CODE || $RESPONSE_CODE != 200 || $RESPONSE_CODE != 201 ]]
+  then
+  # <@UNT6EB562> is Artemis User
+  sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered on Inarix API! You'll be soon able to launch Argo Workflow"
+  echo "Finished with Success! $(echo $RESPONSE | jq)"
+  
+  else
+  # <@USVDXF4KS> is Me (Alexandre Saison)
+  sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> please check the Github Action" 
+  echo "Finished with some Error : $(echo $RESPONSE | jq)"
+  fi
+
 }
-EOF
-#Send a simple CURL request to send the message
 
-curl -d @./payload.json \
-    -X POST \
-    -s \
-    --silent \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer ${SLACK_API_TOKEN}" \
-    https://slack.com/api/chat.postMessage
+function sendSlackMessage {
+  MESSAGE_TITLE=$1
+  MESSAGE_PAYLOAD=$2
+  IS_REPLY=$3
 
-#Returns the actual THREAD_TS stored as third argument of this script
-echo $IS_REPLY
-rm payload.json
-else
-cat >./payload.json <<EOF 
-{
-"channel": "$SLACK_CHANNEL_ID",
-"text": "[${MESSAGE_TITLE}] : $MESSAGE_PAYLOAD"
-}
-EOF
+  if [[ -n $IS_REPLY ]]
+  then
+    echo -n "{ \"channel\": \"$SLACK_CHANNEL_ID\", \"text\": \"[$MESSAGE_TITLE] : $MESSAGE_PAYLOAD\", \"thread_ts\": \"$IS_REPLY\" }" > payload.json
 
-    #Stores the response of the CURL request
-    RESPONSE=$(curl -d @./payload.json \
-         -X POST \
-         -s \
-         --silent \
-         -H "Content-Type: application/json" \
-         -H "Authorization: Bearer ${SLACK_API_TOKEN}" \
-         https://slack.com/api/chat.postMessage)
+    curl -d @./payload.json \
+      -X POST \
+      -s \
+      --silent \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer ${SLACK_API_TOKEN}" \
+      https://slack.com/api/chat.postMessage
 
-    #Use the jq linux command to simply get access to the ts value for the object response from $RESPONSE
-    THREAD_TS=$(echo "$RESPONSE" | jq .ts)
-
-    #Return script value as the THREAD_TS for future responses
-    echo $THREAD_TS
+    #Returns the actual THREAD_TS stored as third argument of this script
+    echo $IS_REPLY
     rm payload.json
-    fi
+    
+  else
+      echo -n "{ \"channel\": \"$SLACK_CHANNEL_ID\", \"text\": \"[$MESSAGE_TITLE] : $MESSAGE_PAYLOAD\" }" > payload.json
+
+      #Stores the response of the CURL request
+      RESPONSE=$(curl -d @./payload.json -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${SLACK_API_TOKEN}" https://slack.com/api/chat.postMessage)
+
+      #Use the jq linux command to simply get access to the ts value for the object response from $RESPONSE
+      THREAD_TS=$(echo "$RESPONSE" | jq .ts)
+
+      #Return script value as the THREAD_TS for future responses
+      echo $THREAD_TS
+      rm payload.json
+  fi
 }
 
 function checkEnvVariables() {
@@ -125,15 +139,14 @@ function checkEnvVariables() {
 }
 
 function generateApplicationSpec() {
-  
   local NODE_SELECTOR="nutshell"
+
   if [[ $WORKER_ENV == "staging" ]]
   then
     NODE_SELECTOR="$NODE_SELECTOR-$WORKER_ENV"
   fi
 
   local VERSION="${MODEL_VERSION:1}"
-
 
   cat > data.json <<EOF 
 { "metadata": { "name": "$APPLICATION_NAME", "namespace": "default" },
@@ -149,7 +162,7 @@ function generateApplicationSpec() {
                     { "name": "credentials.api.username", "value": "$INARIX_USERNAME" },
                     { "name": "credentials.aws.accessKey", "value": "$AWS_ACCESS_KEY_ID" },
                     { "name": "credentials.aws.secretKey", "value": "$AWS_SECRET_ACCESS_KEY" },
-                    { "name": "image.imageName", "value": "$MODEL_NAME" },
+                    { "name": "image.imageName", "value": "$REPOSITORY" },
                     { "name": "image.version", "value": "$VERSION" },
                     { "name": "model.modelName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
                     { "name": "model.nutshellName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
@@ -172,19 +185,13 @@ EOF
 }
 
 function syncApplicationSpec() {
-    RESPONSE=$(curl -L -X POST "${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}/sync" \
-    -H 'Content-Type: application/json' \
-    -H "Authorization: Bearer ${ARGOCD_TOKEN}")
+    RESPONSE=$(curl -L -X POST "${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}/sync" -H "Content-Type: application/json" -H "Authorization: Bearer ${ARGOCD_TOKEN}") 
     echo $CURL_RESPONSE
 }
 
 function createApplicationSpec() {
     generateApplicationSpec
-    
-    CURL_RESPONSE=$(curl -L -X POST "${ARGOCD_ENTRYPOINT}" \
-    -H 'Content-Type: application/json' \
-    -H "Authorization: Bearer ${ARGOCD_TOKEN}" \
-    -d @./data.json)
+    CURL_RESPONSE=$(curl -L -X POST "${ARGOCD_ENTRYPOINT}" -H 'Content-Type: application/json' -H "Authorization: Bearer ${ARGOCD_TOKEN}" -d @./data.json)
     echo $CURL_RESPONSE
 }
 
@@ -193,7 +200,7 @@ function createApplicationSpec() {
 echo "[$(date +"%m/%d/%y %T")] checking functions.sh"
 checkEnvVariables
 
-echo "[$(date +"%m/%d/%y %T")] Deploying model $MODEL_NAME:$MODEL_VERSION"
+echo "[$(date +"%m/%d/%y %T")] Deploying model $REPOSITORY:$MODEL_VERSION"
 echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 
 THREAD_TS=$(sendSlackMessage "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
@@ -201,28 +208,28 @@ CREATE_RESPONSE=$(createApplicationSpec)
 
 if [[ $? == 1 ]]
 then
-    sendSlackMessage "MODEL_DEPLOYMENT" "Application had a error when creating ApplicatinSpec: $CREATE_RESPONSE" $THREAD_TS
+    sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATION_NAME had a error when creating ApplicatinSpec: $CREATE_RESPONSE" $THREAD_TS
     exit 1
 fi
 
 HAS_ERROR=$(echo $CREATE_RESPONSE | jq .error )
-echo "CreateResponse=$CREATE_RESPONSE"
 
 if [[ -n $HAS_ERROR ]]
 then
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
-    sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}" $THREAD_TS
+    sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}"
     SYNC_RESPONSE=$(syncApplicationSpec)
     HAS_ERROR=$(echo $SYNC_RESPONSE | jq .error )
     echo "SyncResponse=$HAS_ERROR"
     
     if [[ -n $HAS_ERROR ]]
     then
-        echo "[$(date +"%m/%d/%y %T")] An error occured during applicaion sync! Error: $HAS_ERROR"
+        echo "[$(date +"%m/%d/%y %T")] An error occured during $APPLICATION_NAME sync! Error: $HAS_ERROR"
         exit 1
     fi
     echo "[$(date +"%m/%d/%y %T")] Application sync succeed!"
-    sendSlackMessage "MODEL_DEPLOYMENT" "Model deployment of ${NUTSHELL_MODEL_SERVING_NAME} version:${MODEL_VERSION}" $THREAD_TS
+
+    registerModel $THREAD_TS
 
     echo "::set-output name=modelVersion::'$MODEL_VERSION'"
     echo "::set-output name=modelName::'$MODEL_NAME'"
@@ -230,7 +237,7 @@ then
     rm data.json
 else
     echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs! Error: $CREATE_RESPONSE"
-    sendSlackMessage "MODEL_DEPLOYMENT" "Application had a error during deployment: $CREATE_RESPONSE" $THREAD_TS
+    sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATIN_NAME had a error during deployment: $CREATE_RESPONSE"
     rm data.json
     exit 1
 fi
