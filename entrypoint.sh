@@ -23,29 +23,31 @@ export REPOSITORY=$(echo "$GITHUB_REPOSITORY" | cut -d "/" -f2)
 function registerModel {
   THREAD_TS=$1
   
-  cat modelDeploymentPayload.json
   local REGISTER_RESPONSE=""
   
   if [[ $WORKER_ENV == "staging" ]]
   then
-    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"${NUTSHELL_MODEL_VERSION}-staging\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:${NUTSHELL_MODEL_VERSION}-staging\", \"metadata\": {}}" > ./modelDeploymentPayload.json
+    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"${NUTSHELL_MODEL_VERSION}-staging\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:${NUTSHELL_MODEL_VERSION}-staging\", \"metadata\": {}}" > modelDeploymentPayload.json
     REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${STAGING_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://staging.api.inarix.com/imodels/model-instance)
   else
-    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"$NUTSHELL_MODEL_VERSION\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:$NUTSHELL_MODEL_VERSION\", \"metadata\": {}}" > ./modelDeploymentPayload.json
+    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"$NUTSHELL_MODEL_VERSION\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:$NUTSHELL_MODEL_VERSION\", \"metadata\": {}}" > modelDeploymentPayload.json
     REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
   fi
 
   RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq .code )
+  echo "----- RESPONSE_CODE=$RESPONSE_CODE"
+  echo "----- REGISTER_RESPONSE=$($REGISTER_RESPONSE | jq)"
   
   if [[ -n $RESPONSE_CODE || $RESPONSE_CODE != 200 || $RESPONSE_CODE != 201 ]]
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
     sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> please check the Github Action" 
-    echo "Finished with some Error : $(echo $RESPONSE | jq)"
+    echo "Finished with some Error : $(echo $REGISTER_RESPONSE | jq)"
   else
     # <@UNT6EB562> is Artemis User
     sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered on Inarix API! You'll be soon able to launch Argo Workflow"
-    echo "Finished with some Error! $(echo $REGISTER_RESPONSE | jq)"
+    echo "Finished with Success! $(echo $REGISTER_RESPONSE | jq)"
+    exit 1
   fi
 
 }
