@@ -40,12 +40,12 @@ function registerModel {
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
     sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> please check the Github Action" 
-    echo"$(echo $REGISTER_RESPONSE | jq .id)"
+    echo "[$(date +"%m/%d/%y %T")] An error occured when registering model to API: $($REGISTER_RESPONSE | jq)"
     exit 1
   else
     # <@UNT6EB562> is Artemis User
-    sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered on Inarix API! You'll be soon able to launch Argo Workflow"
     echo"$(echo $REGISTER_RESPONSE | jq .id)"
+    sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered on Inarix API! You'll be soon able to launch Argo Workflow"
   fi
 
 }
