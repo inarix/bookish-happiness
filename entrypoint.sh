@@ -35,12 +35,13 @@ function registerModel {
   fi
 
   RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq .code )
+  rm modelDeploymentPayload.json
   
   if [[ -n $RESPONSE_CODE || $RESPONSE_CODE == "null" ]]
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
+    echo "[$(date +"%m/%d/%y %T")] An error occured when registering model to API"
     sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> please check the Github Action" 
-    echo "[$(date +"%m/%d/%y %T")] An error occured when registering model to API: $($REGISTER_RESPONSE | jq)"
     exit 1
   else
     # <@UNT6EB562> is Artemis User
