@@ -36,7 +36,7 @@ function registerModel {
 
   RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq -e .code )
   
-  if [[ $RESPONSE_CODE == 1 ]]
+  if [[ $RESPONSE_CODE == 1 || $RESPONSE_CODE != 201 ]]
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
     sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> please check the Github Action"  > /dev/null
@@ -218,10 +218,9 @@ then
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
     sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}"
     SYNC_RESPONSE=$(syncApplicationSpec)
-    HAS_ERROR=$(echo $SYNC_RESPONSE | jq .error )
-    echo "SyncResponse=$HAS_ERROR"
+    HAS_ERROR=$(echo $SYNC_RESPONSE | jq -e .error )
     
-    if [[ -n $HAS_ERROR ]]
+    if [[ $HAS_ERROR == 1 ]]
     then
         echo "[$(date +"%m/%d/%y %T")] An error occured during $APPLICATION_NAME sync! Error: $HAS_ERROR"
         exit 1
@@ -230,8 +229,7 @@ then
 
     MODEL_INSTANCE_ID=$(registerModel $THREAD_TS)
 
-    # TODO : HANDLE MODEL_INSTANCE_ID from registerModel
-    echo "::set-output name=modelInstanceId::'$MODEL_INSTANCE_ID'"
+    echo "::set-output name=modelInstanceId::'${MODEL_INSTANCE_ID}'"
     echo "[$(date +"%m/%d/%y %T")] Removing generated data.json!"
     rm data.json
 else
