@@ -35,6 +35,7 @@ function registerModel {
   fi
 
   RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq -e .code )
+  echo "RESPONSE_CODE=$RESPONSE_CODE"
   
   if [[ $RESPONSE_CODE == 1 || $RESPONSE_CODE != 201 ]]
   then
@@ -211,9 +212,9 @@ then
     exit 1
 fi
 
-HAS_ERROR=$(echo $CREATE_RESPONSE | jq .error )
+HAS_ERROR=$(echo $CREATE_RESPONSE | jq -e .error )
 
-if [[ -n $HAS_ERROR ]]
+if [[ $HAS_ERROR == 0 ]]
 then
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
     sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}"
