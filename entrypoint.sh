@@ -35,7 +35,6 @@ function registerModel {
   fi
 
   RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq -e .code )
-  echo "RESPONSE_CODE=$RESPONSE_CODE"
   
   if [[ $RESPONSE_CODE == 1 || $RESPONSE_CODE != 201 ]]
   then
@@ -212,9 +211,9 @@ then
     exit 1
 fi
 
-HAS_ERROR=$(echo $CREATE_RESPONSE | jq -e .error )
+HAS_ERROR=$(echo $CREATE_RESPONSE | jq .error )
 
-if [[ $HAS_ERROR == 0 ]]
+if [[ -n $HAS_ERROR ]]
 then
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
     sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}"
@@ -230,12 +229,13 @@ then
 
     MODEL_INSTANCE_ID=$(registerModel $THREAD_TS)
 
+    echo "MODEL_INSTANCE_ID : $MODEL_INSTANCE_ID"
     echo "::set-output name=modelInstanceId::'${MODEL_INSTANCE_ID}'"
     echo "[$(date +"%m/%d/%y %T")] Removing generated data.json!"
     rm data.json
 else
     echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs! Error: $CREATE_RESPONSE"
-    sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATIN_NAME had a error during deployment: $CREATE_RESPONSE"
+    sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATION_NAME had a error during deployment: $CREATE_RESPONSE"
     rm data.json
     exit 1
 fi
