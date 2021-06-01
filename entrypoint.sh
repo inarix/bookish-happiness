@@ -2,7 +2,7 @@
 # File              : entrypoint.sh
 # Author            : Alexandre Saison <alexandre.saison@inarix.com>
 # Date              : 25.05.2021
-# Last Modified Date: 31.05.2021
+# Last Modified Date: 01.06.2021
 # Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
 if [[ -f .env ]]
 then
@@ -34,19 +34,17 @@ function registerModel {
     REGISTER_RESPONSE=$(curl -s -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
   fi
 
-  RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq .code )
-  rm modelDeploymentPayload.json
+  RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq -e .code )
   
-  if [[ -n $RESPONSE_CODE || $RESPONSE_CODE == "null" ]]
+  if [[ $RESPONSE_CODE == 1 ]]
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
-    echo "[$(date +"%m/%d/%y %T")] An error occured when registering model to API"
-    sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> please check the Github Action" 
+    sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> please check the Github Action"  > /dev/null
     exit 1
   else
     # <@UNT6EB562> is Artemis User
     echo"$(echo $REGISTER_RESPONSE | jq .id)"
-    sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered on Inarix API! You'll be soon able to launch Argo Workflow"
+    sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered on Inarix API! You'll be soon able to launch Argo Workflow" > /dev/null
   fi
 
 }
