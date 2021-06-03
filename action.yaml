@@ -6,10 +6,8 @@
 name: 'Bookish-Happiness'
 description: 'Push Nutshell to ArgoCD in PullRequest'
 outputs:
-  modelVersion: # id of output
-    description: 'Version of model deployed to ArgoCD'
-  modelName: # id of output
-    description: 'Name of model deployed to ArgoCD'
+  modelInstanceId: # id of output
+    description: 'Register model instance id.'
 runs:
   using: 'docker'
   image: 'Dockerfile'

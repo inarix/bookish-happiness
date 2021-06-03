@@ -2,7 +2,7 @@
 # File              : entrypoint.sh
 # Author            : Alexandre Saison <alexandre.saison@inarix.com>
 # Date              : 25.05.2021
-# Last Modified Date: 27.05.2021
+# Last Modified Date: 03.06.2021
 # Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
 if [[ -f .env ]]
 then
@@ -23,29 +23,30 @@ export REPOSITORY=$(echo "$GITHUB_REPOSITORY" | cut -d "/" -f2)
 function registerModel {
   THREAD_TS=$1
   
-  cat modelDeploymentPayload.json
+  local REGISTER_RESPONSE=""
+  local metadata="{\"source\": \"Github Action\",\"date\": \"$(date +"%m/%d/%y %T")\"}"
   
   if [[ $WORKER_ENV == "staging" ]]
   then
-    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"${NUTSHELL_MODEL_VERSION}-staging\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:${NUTSHELL_MODEL_VERSION}-staging\", \"metadata\": {}}" > ./modelDeploymentPayload.json
-    RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${STAGING_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://staging.api.inarix.com/imodels/model-instance)
+    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"${NUTSHELL_MODEL_VERSION}-staging\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:${NUTSHELL_MODEL_VERSION}-staging\", \"metadata\": $metadata}" > modelDeploymentPayload.json
+    REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${STAGING_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://staging.api.inarix.com/imodels/model-instance)
   else
-    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"$NUTSHELL_MODEL_VERSION\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:$NUTSHELL_MODEL_VERSION\", \"metadata\": {}}" > ./modelDeploymentPayload.json
-    RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
+    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"$NUTSHELL_MODEL_VERSION\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:$NUTSHELL_MODEL_VERSION\", \"metadata\": $metadata}" > modelDeploymentPayload.json
+    REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
   fi
 
-  RESPONSE_CODE=$(echo "$RESPONSE" | jq .code )
+  local RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq -e -r .code )
+  local MODEL_VERSION_ID=$(echo $REGISTER_RESPONSE | jq -r -e .id)
   
-  if [[ -n $RESPONSE_CODE || $RESPONSE_CODE != 200 || $RESPONSE_CODE != 201 ]]
+  if [[ -z $MODEL_VERSION_ID ]]
   then
-  # <@UNT6EB562> is Artemis User
-  sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered on Inarix API! You'll be soon able to launch Argo Workflow"
-  echo "Finished with Success! $(echo $RESPONSE | jq)"
-  
+    # <@USVDXF4KS> is Me (Alexandre Saison)
+    sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE"  > /dev/null
+    exit 1
   else
-  # <@USVDXF4KS> is Me (Alexandre Saison)
-  sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> please check the Github Action" 
-  echo "Finished with some Error : $(echo $RESPONSE | jq)"
+    # <@UNT6EB562> is Artemis User
+    echo "$MODEL_VERSION_ID"
+    sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered new model version of $REPOSITORY (version=$MODEL_VERSION_ID) on Inarix API!" > /dev/null
   fi
 
 }
@@ -140,13 +141,15 @@ function checkEnvVariables() {
 
 function generateApplicationSpec() {
   local NODE_SELECTOR="nutshell"
+  local VERSION="${MODEL_VERSION:1}"
+  local MODEL_NAME=$NUTSHELL_MODEL_SERVING_NAME
 
   if [[ $WORKER_ENV == "staging" ]]
   then
     NODE_SELECTOR="$NODE_SELECTOR-$WORKER_ENV"
+    MODEL_NAME="${MODEL_NAME}-staging"
   fi
 
-  local VERSION="${MODEL_VERSION:1}"
 
   cat > data.json <<EOF 
 { "metadata": { "name": "$APPLICATION_NAME", "namespace": "default" },
@@ -164,8 +167,8 @@ function generateApplicationSpec() {
                     { "name": "credentials.aws.secretKey", "value": "$AWS_SECRET_ACCESS_KEY" },
                     { "name": "image.imageName", "value": "$REPOSITORY" },
                     { "name": "image.version", "value": "$VERSION" },
-                    { "name": "model.modelName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
-                    { "name": "model.nutshellName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
+                    { "name": "model.modelName", "value": "$MODEL_NAME" },
+                    { "name": "model.nutshellName", "value": "$MODEL_NAME" },
                     { "name": "model.servingMode", "value": "$NUTSHELL_MODE" },
                     { "name": "nodeSelector.name", "value": "$NODE_SELECTOR" },
                     { "name": "nutshell.fileLocationId", "value": "$NUTSHELL_WORKER_MODEL_FILE_LOC_ID" },
@@ -219,25 +222,22 @@ then
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
     sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}"
     SYNC_RESPONSE=$(syncApplicationSpec)
-    HAS_ERROR=$(echo $SYNC_RESPONSE | jq .error )
-    echo "SyncResponse=$HAS_ERROR"
+    HAS_ERROR=$(echo $SYNC_RESPONSE | jq -e .error )
     
-    if [[ -n $HAS_ERROR ]]
+    if [[ $HAS_ERROR == 1 ]]
     then
         echo "[$(date +"%m/%d/%y %T")] An error occured during $APPLICATION_NAME sync! Error: $HAS_ERROR"
         exit 1
     fi
     echo "[$(date +"%m/%d/%y %T")] Application sync succeed!"
 
-    registerModel $THREAD_TS
+    MODEL_INSTANCE_ID=$(registerModel $THREAD_TS)
 
-    echo "::set-output name=modelVersion::'$MODEL_VERSION'"
-    echo "::set-output name=modelName::'$MODEL_NAME'"
-    echo "[$(date +"%m/%d/%y %T")] Removing generated data.json!"
+    echo "::set-output name=modelInstanceId::'${MODEL_INSTANCE_ID}'"
     rm data.json
 else
     echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs! Error: $CREATE_RESPONSE"
-    sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATIN_NAME had a error during deployment: $CREATE_RESPONSE"
+    sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATION_NAME had a error during deployment: $CREATE_RESPONSE"
     rm data.json
     exit 1
 fi
