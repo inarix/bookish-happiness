@@ -41,11 +41,10 @@ function registerModel {
   if [[ -z $MODEL_VERSION_ID ]]
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
-    sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE and id=$HAS_FAILED"  > /dev/null
+    sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE"  > /dev/null
     exit 1
   else
     # <@UNT6EB562> is Artemis User
-    local MODEL_VERSION_ID=$(echo $REGISTER_RESPONSE | jq -r -e .id)
     echo "$MODEL_VERSION_ID"
     sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered new model version of $REPOSITORY (version=$MODEL_VERSION_ID) on Inarix API!" > /dev/null
   fi
