@@ -233,7 +233,7 @@ then
 
     MODEL_INSTANCE_ID=$(registerModel $THREAD_TS)
 
-    echo "::set-output name=modelInstanceId::'${MODEL_INSTANCE_ID}'"
+    echo "::set-output name=modelInstanceId::${MODEL_INSTANCE_ID}"
     rm data.json
 else
     echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs! Error: $CREATE_RESPONSE"

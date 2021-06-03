@@ -3,13 +3,9 @@ Auto generated name for ArgoCD model deployment Github Action
 
 ## Outputs
 
-### `modelName`
+### `modelInstanceId`
 
-Name of the model that has been deployed to ArgoCD. This can be used for github comment-on-pr step.
-
-### `modelVersion`
-
-Version of the model that has been deployed to ArgoCD. This can be used for github comment-on-pr step.
+Id of the registered model that has been deployed to ArgoCD. This is required by ``potential-fortnight`` Github Action to run loki integration tests.
 
 ## Example usage
 ```yaml
@@ -20,8 +16,9 @@ Version of the model that has been deployed to ArgoCD. This can be used for gith
   uses: unsplash/comment-on-pr@master
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    DEPLOYED_MODEL_ID: ${{ steps.deploy_model.outputs.modelInstanceId }}
   with:
-    msg: 'Deployed model'
+    msg: 'Deployed exported model (id: $DEPLOYED_MODEL_ID)'
     check_for_duplicate_msg: false
 ```
 
