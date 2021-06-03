@@ -35,8 +35,8 @@ function registerModel {
     REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
   fi
 
-  RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq -e .code )
-  HAS_FAILED=$(echo "$REGISTER_RESPONSE" | jq -e .id )
+  RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq -e -r .code )
+  HAS_FAILED=$(echo "$REGISTER_RESPONSE" | jq -e -r .id )
   
   if [[ $RESPONSE_CODE != 201 ||  $HAS_FAILED == 1 ]]
   then
@@ -45,7 +45,7 @@ function registerModel {
     exit 1
   else
     # <@UNT6EB562> is Artemis User
-    local MODEL_VERSION_ID=$(echo $REGISTER_RESPONSE | jq .id)
+    local MODEL_VERSION_ID=$(echo $REGISTER_RESPONSE | jq -r -e .id)
     echo "$MODEL_VERSION_ID"
     sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered new model version of $REPOSITORY (version=$MODEL_VERSION_ID) on Inarix API!" > /dev/null
   fi
