@@ -36,16 +36,15 @@ function registerModel {
   fi
 
   RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq .code )
-  echo "REGISTER_RESPONSE=$(echo $REGISTER_RESPONSE | jq)"
   
-  if [[ $RESPONSE_CODE == 1 || $RESPONSE_CODE != 201 ]]
+  if [[ $RESPONSE_CODE == 1 || $RESPONSE_CODE != 201 || -z $RESPONSE_CODE ]]
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
     sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE"  > /dev/null
     exit 1
   else
     # <@UNT6EB562> is Artemis User
-    local MODEL_VERSION_ID=$(echo $REGISTER_RESPONSE | jq -e .id)
+    local MODEL_VERSION_ID=$(echo $REGISTER_RESPONSE | jq .id)
     echo "$MODEL_VERSION_ID"
     sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered new model version of $REPOSITORY (version=$MODEL_VERSION_ID) on Inarix API!" > /dev/null
   fi
