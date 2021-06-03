@@ -142,13 +142,15 @@ function checkEnvVariables() {
 
 function generateApplicationSpec() {
   local NODE_SELECTOR="nutshell"
+  local VERSION="${MODEL_VERSION:1}"
+  local MODEL_NAME=$NUTSHELL_MODEL_SERVING_NAME
 
   if [[ $WORKER_ENV == "staging" ]]
   then
     NODE_SELECTOR="$NODE_SELECTOR-$WORKER_ENV"
+    MODEL_NAME="${MODEL_NAME}-staging"
   fi
 
-  local VERSION="${MODEL_VERSION:1}"
 
   cat > data.json <<EOF 
 { "metadata": { "name": "$APPLICATION_NAME", "namespace": "default" },
@@ -166,8 +168,8 @@ function generateApplicationSpec() {
                     { "name": "credentials.aws.secretKey", "value": "$AWS_SECRET_ACCESS_KEY" },
                     { "name": "image.imageName", "value": "$REPOSITORY" },
                     { "name": "image.version", "value": "$VERSION" },
-                    { "name": "model.modelName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
-                    { "name": "model.nutshellName", "value": "$NUTSHELL_MODEL_SERVING_NAME" },
+                    { "name": "model.modelName", "value": "$MODEL_NAME" },
+                    { "name": "model.nutshellName", "value": "$MODEL_NAME" },
                     { "name": "model.servingMode", "value": "$NUTSHELL_MODE" },
                     { "name": "nodeSelector.name", "value": "$NODE_SELECTOR" },
                     { "name": "nutshell.fileLocationId", "value": "$NUTSHELL_WORKER_MODEL_FILE_LOC_ID" },
