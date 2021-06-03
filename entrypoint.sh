@@ -36,10 +36,9 @@ function registerModel {
   fi
 
   RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq -e .code )
-  HAS_FAILED=$(echo "$REGISTER_RESPONSE" | jq -e .id ) && echo "$?"
-
+  HAS_FAILED=$(echo "$REGISTER_RESPONSE" | jq -e .id )
   
-  if [[ -z $RESPONSE_CODE ||  $HAS_FAILED == 1 ]]
+  if [[ $RESPONSE_CODE != 201 ||  $HAS_FAILED == 1 ]]
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
     sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE"  > /dev/null
@@ -233,9 +232,7 @@ then
 
     MODEL_INSTANCE_ID=$(registerModel $THREAD_TS)
 
-    echo "MODEL_INSTANCE_ID : $MODEL_INSTANCE_ID"
     echo "::set-output name=modelInstanceId::'${MODEL_INSTANCE_ID}'"
-    echo "[$(date +"%m/%d/%y %T")] Removing generated data.json!"
     rm data.json
 else
     echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs! Error: $CREATE_RESPONSE"
