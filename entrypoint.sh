@@ -2,7 +2,7 @@
 # File              : entrypoint.sh
 # Author            : Alexandre Saison <alexandre.saison@inarix.com>
 # Date              : 25.05.2021
-# Last Modified Date: 01.06.2021
+# Last Modified Date: 03.06.2021
 # Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
 if [[ -f .env ]]
 then
@@ -38,7 +38,7 @@ function registerModel {
   RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq -e -r .code )
   HAS_FAILED=$(echo "$REGISTER_RESPONSE" | jq -e -r .id )
   
-  if [[ $RESPONSE_CODE != 201 ||  $HAS_FAILED == 1 ]]
+  if [[ ( -n $RESPONSE_CODE && $RESPONSE_CODE != 201 ) ||  $HAS_FAILED == 1 ]]
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
     sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE"  > /dev/null
