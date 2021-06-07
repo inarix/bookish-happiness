@@ -5,7 +5,7 @@ LABEL repository="https://github.com/inarix/bookish-happiness"
 LABEL homepage="https://github.com/inarix/bookish-happiness"
 LABEL maintainer="Alexandre Saison <alexandre.saison@inarix.com>"
 
-RUN apk add --no-cache ca-certificates curl jq git build-base bash
+RUN apk add --no-cache ca-certificates curl jq git build-base bash python
 
 COPY entrypoint.sh /entrypoint.sh
 

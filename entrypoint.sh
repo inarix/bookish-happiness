@@ -19,12 +19,22 @@ export MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
 export APPLICATION_NAME="$WORKER_ENV-mt-$MODEL_NAME"
 export REPOSITORY=$(echo "$GITHUB_REPOSITORY" | cut -d "/" -f2)
 
+function fromEnvToJson {
+  python -c "
+import json
+import sys
+with open('.env', 'r') as f:
+    content = f.readlines()
+content = [x.strip().split('=') for x in content if '=' in x]
+print(json.dumps(dict(content)))"
+}
+
 # 2. Declaring functions
 function registerModel {
   THREAD_TS=$1
   
   local REGISTER_RESPONSE=""
-  local metadata="{\"source\": \"Github Action\",\"date\": \"$(date +"%m/%d/%y %T")\"}"
+  local metadata=$(fromEnvToJson | jq '. + { ci : {source: "Github Action"} }')
   
   if [[ $WORKER_ENV == "staging" ]]
   then
