@@ -45,10 +45,10 @@ function registerModel {
     REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
   fi
 
-  local RESPONSE_CODE=$(echo "$REGISTER_RESPONSE" | jq -e -r .code )
-  local MODEL_VERSION_ID=$(echo $REGISTER_RESPONSE | jq -r -e .id)
+  local RESPONSE_CODE=$(echo $REGISTER_RESPONSE | jq -r .code )
+  local MODEL_VERSION_ID=$(echo $REGISTER_RESPONSE | jq -r .id)
   
-  if [[ -z $MODEL_VERSION_ID ]]
+  if [[ "${MODEL_VERSION_ID}" = "null" ]]
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
     sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE"  > /dev/null
