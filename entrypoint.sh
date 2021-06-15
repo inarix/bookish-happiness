@@ -16,7 +16,7 @@ fi
 # 1. Creation of local variables
 export MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
 export MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
-export APPLICATION_NAME="$WORKER_ENV-mt-$MODEL_NAME"
+export APPLICATION_NAME=$(echo "mt-$MODEL_NAME" | awk '{print tolower($0)}')
 export REPOSITORY=$(echo "$GITHUB_REPOSITORY" | cut -d "/" -f2)
 
 function fromEnvToJson {
@@ -31,15 +31,22 @@ print(json.dumps(dict(content)))"
 
 # 2. Declaring functions
 function registerModel {
-  THREAD_TS=$1
+  local THREAD_TS=$1
   
   local REGISTER_RESPONSE=""
   local metadata=$(fromEnvToJson | jq '. + { ci : {source: "Github Action"} }')
   
+  # ------------------------------ #
+  # -----  TODO: WARNING !! ------ #
+  #    THIS IS FOR TEST AND HAS    #
+  #      TO BE DELETED AFTER       #
+  # ------------------------------ #
+  WORKER_ENV="staging"
+
   if [[ $WORKER_ENV == "staging" ]]
   then
-    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"${NUTSHELL_MODEL_VERSION}-staging\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:${NUTSHELL_MODEL_VERSION}-staging\", \"metadata\": $metadata}" > modelDeploymentPayload.json
-    REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${STAGING_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://staging.api.inarix.com/imodels/model-instance)
+    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"$NUTSHELL_MODEL_VERSION\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:$NUTSHELL_MODEL_VERSION\", \"metadata\": $metadata}" > modelDeploymentPayload.json
+    REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
   else
     echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"$NUTSHELL_MODEL_VERSION\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:$NUTSHELL_MODEL_VERSION\", \"metadata\": $metadata}" > modelDeploymentPayload.json
     REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
@@ -51,12 +58,12 @@ function registerModel {
   if [[ "${MODEL_VERSION_ID}" = "null" ]]
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
-    sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE"  > /dev/null
+    sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE" $THREAD_TS > /dev/null
     exit 1
   else
     # <@UNT6EB562> is Artemis User
     echo "$MODEL_VERSION_ID"
-    sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered new model version of $REPOSITORY (version=$MODEL_VERSION_ID) on Inarix API!" > /dev/null
+    sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered new model version of $REPOSITORY (version=$MODEL_VERSION_ID) on $WORKER_ENV environment" $THREAD_TS > /dev/null
   fi
 
 }
@@ -89,7 +96,7 @@ function sendSlackMessage {
       RESPONSE=$(curl -d @./payload.json -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${SLACK_API_TOKEN}" https://slack.com/api/chat.postMessage)
 
       #Use the jq linux command to simply get access to the ts value for the object response from $RESPONSE
-      THREAD_TS=$(echo "$RESPONSE" | jq .ts)
+      THREAD_TS=$(echo "$RESPONSE" | jq -r .ts)
 
       #Return script value as the THREAD_TS for future responses
       echo $THREAD_TS
@@ -152,13 +159,14 @@ function checkEnvVariables() {
 function generateApplicationSpec() {
   local NODE_SELECTOR="nutshell"
   local VERSION="${MODEL_VERSION:1}"
-  local MODEL_NAME=$NUTSHELL_MODEL_SERVING_NAME
 
   if [[ $WORKER_ENV == "staging" ]]
   then
     NODE_SELECTOR="$NODE_SELECTOR-$WORKER_ENV"
-    MODEL_NAME="${MODEL_NAME}-staging"
   fi
+
+  #TODO : WARNING THIS HAS TO BE REMOVED AFTER TESTS
+  WORKER_ENV="staging"
 
 
   cat > data.json <<EOF 
@@ -219,24 +227,26 @@ echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 THREAD_TS=$(sendSlackMessage "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
 CREATE_RESPONSE=$(createApplicationSpec)
 
+echo "CREATE_RESPONSE=$CREATE_RESPONSE"
+
 if [[ $? == 1 ]]
 then
     sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATION_NAME had a error when creating ApplicatinSpec: $CREATE_RESPONSE" $THREAD_TS
     exit 1
 fi
 
-HAS_ERROR=$(echo $CREATE_RESPONSE | jq .error )
+HAS_ERROR=$(echo $CREATE_RESPONSE | jq -e .error )
 
 if [[ -n $HAS_ERROR ]]
 then
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
-    sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}"
+    sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}" $THREAD_TS
     SYNC_RESPONSE=$(syncApplicationSpec)
     HAS_ERROR=$(echo $SYNC_RESPONSE | jq -e .error )
     
     if [[ $HAS_ERROR == 1 ]]
     then
-        echo "[$(date +"%m/%d/%y %T")] An error occured during $APPLICATION_NAME sync! Error: $HAS_ERROR"
+        echo "[$(date +"%m/%d/%y %T")] An error occured during $APPLICATION_NAME sync! Error: $HAS_ERROR" $THREAD_TS
         exit 1
     fi
     echo "[$(date +"%m/%d/%y %T")] Application sync succeed!"
@@ -247,7 +257,7 @@ then
     rm data.json
 else
     echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs! Error: $CREATE_RESPONSE"
-    sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATION_NAME had a error during deployment: $CREATE_RESPONSE"
+    sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATION_NAME had a error during deployment: $CREATE_RESPONSE" $THREAD_TS
     rm data.json
     exit 1
 fi
