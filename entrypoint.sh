@@ -60,17 +60,10 @@ function registerModel {
   local REGISTER_RESPONSE=""
   local metadata=$(fromEnvToJson | jq '. + { ci : {source: "Github Action"} }')
   
-  # ------------------------------ #
-  # -----  TODO: WARNING !! ------ #
-  #    THIS IS FOR TEST AND HAS    #
-  #      TO BE DELETED AFTER       #
-  # ------------------------------ #
-  WORKER_ENV="staging"
-
   if [[ $WORKER_ENV == "staging" ]]
   then
-    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"$NUTSHELL_MODEL_VERSION\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:$NUTSHELL_MODEL_VERSION\", \"metadata\": $metadata}" > modelDeploymentPayload.json
-    REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
+    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"${NUTSHELL_MODEL_VERSION}-staging\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:${NUTSHELL_MODEL_VERSION}-staging\", \"metadata\": $metadata}" > modelDeploymentPayload.json
+    REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${STAGING_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://staging.api.inarix.com/imodels/model-instance)
   else
     echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"$NUTSHELL_MODEL_VERSION\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:$NUTSHELL_MODEL_VERSION\", \"metadata\": $metadata}" > modelDeploymentPayload.json
     REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
@@ -189,10 +182,6 @@ function generateApplicationSpec() {
     NODE_SELECTOR="$NODE_SELECTOR-$WORKER_ENV"
   fi
 
-  #TODO : WARNING THIS HAS TO BE REMOVED AFTER TESTS
-  WORKER_ENV="staging"
-
-
   cat > data.json <<EOF 
 { "metadata": { "name": "$APPLICATION_NAME", "namespace": "default" },
   "spec": { "source": {
@@ -242,16 +231,15 @@ function createApplicationSpec() {
 
 # 3. Script starts now
 
-echo "[$(date +"%m/%d/%y %T")] checking functions.sh"
+echo "::group::Check env variables"
 checkEnvVariables
+echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
+echo "::endgroup::"
 
 echo "[$(date +"%m/%d/%y %T")] Deploying model $REPOSITORY:$MODEL_VERSION"
-echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 
 THREAD_TS=$(sendSlackMessage "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
 CREATE_RESPONSE=$(createApplicationSpec)
-
-echo "CREATE_RESPONSE=$CREATE_RESPONSE"
 
 if [[ $? == 1 ]]
 then
@@ -263,24 +251,39 @@ HAS_ERROR=$(echo $CREATE_RESPONSE | jq -e .error )
 
 if [[ -n $HAS_ERROR ]]
 then
+    echo "::group::ArgoCD ${APPLICATION_NAME} creation"
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
     sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}" $THREAD_TS
     SYNC_RESPONSE=$(syncApplicationSpec)
     HAS_ERROR=$(echo $SYNC_RESPONSE | jq -e .error )
 
-    waitForHealthy
-    
     if [[ $HAS_ERROR == 1 ]]
     then
         echo "[$(date +"%m/%d/%y %T")] An error occured during $APPLICATION_NAME sync! Error: $HAS_ERROR" $THREAD_TS
         exit 1
     fi
-    echo "[$(date +"%m/%d/%y %T")] Application sync succeed!"
 
+    echo "[$(date +"%m/%d/%y %T")] Waiting for ${APPLICATION_NAME} to be Healthy!"
+    waitForHealthy
+    
+    if [[ $? == 1 ]]
+    then
+      echo "[$(date +"%m/%d/%y %T")] Application creation failed!"
+      exit 1
+    else 
+      echo "[$(date +"%m/%d/%y %T")] Application sync succeed!"
+    fi
+    echo "::endgroup::"
+    
+
+
+    echo "::group::Model registration"
     MODEL_INSTANCE_ID=$(registerModel $THREAD_TS)
 
     echo "::set-output name=modelInstanceId::${MODEL_INSTANCE_ID}"
     rm data.json
+    exit 0
+    echo "::endgroup::"
 else
     echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs! Error: $CREATE_RESPONSE"
     sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATION_NAME had a error during deployment: $CREATE_RESPONSE" $THREAD_TS
