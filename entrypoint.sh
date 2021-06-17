@@ -44,15 +44,15 @@ while True and retry > 0:
     status = payload["status"]["health"]["status"]
     if status == "Healthy":
       raise SystemExit(0)
-    if status == "Missing":
+    elif status == "Missing":
       print(f"Health status error: {status} then retry {retry}")
       retry -= 1
-    if status != "Progressing" and status != "Missing":
+    elif status != "Progressing":
       print(f"Health status error: {status}")
       raise SystemExit(1)
-    else:
-      print("Invalid payload returned from ArgoCD")
-      raise SystemExit(1)
+  else:
+    print("Invalid payload returned from ArgoCD")
+    raise SystemExit(1)
   time.sleep(1)
   '
 }
