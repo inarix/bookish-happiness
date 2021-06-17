@@ -1,9 +1,4 @@
 #!/bin/bash 
-# File              : entrypoint.sh
-# Author            : Alexandre Saison <alexandre.saison@inarix.com>
-# Date              : 25.05.2021
-# Last Modified Date: 03.06.2021
-# Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
 if [[ -f .env ]]
 then
   export $(grep -v '^#' .env | xargs)
@@ -27,6 +22,35 @@ with open('.env', 'r') as f:
     content = f.readlines()
 content = [x.strip().split('=') for x in content if '=' in x]
 print(json.dumps(dict(content)))"
+}
+
+function waitForHealthy {
+  python -c '
+import os
+import requests
+import time
+name = os.environ.get("APPLICATION_NAME")
+token = os.environ.get("ARGOCD_TOKEN")
+endpoint = os.environ.get("ARGOCD_ENTRYPOINT")
+headers = {"Authorization": f"Bearer {token}"}
+while True:
+  res = requests.get(f"{endpoint}/{name}", headers=headers)
+  if res.status_code != 200:
+    print(f"error: Status code != 200, {res.status_code}")
+    raise SystemExit(1)
+  payload = res.json()
+  if "status" in payload and "health" in payload["status"] and "status" in payload["status"]["health"]:
+    status = payload["status"]["health"]["status"]
+    if status == "Healthy":
+      raise SystemExit(0)
+    if status != "Progressing":
+      print(f"Health status error: {status}")
+      raise SystemExit(1)
+    else:
+      print("Invalid payload returned from ArgoCD")
+      raise SystemExit(1)
+  time.sleep(1)
+  '
 }
 
 # 2. Declaring functions
@@ -243,6 +267,8 @@ then
     sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}" $THREAD_TS
     SYNC_RESPONSE=$(syncApplicationSpec)
     HAS_ERROR=$(echo $SYNC_RESPONSE | jq -e .error )
+
+    waitForHealthy
     
     if [[ $HAS_ERROR == 1 ]]
     then
