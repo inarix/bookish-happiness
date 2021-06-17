@@ -33,7 +33,8 @@ name = os.environ.get("APPLICATION_NAME")
 token = os.environ.get("ARGOCD_TOKEN")
 endpoint = os.environ.get("ARGOCD_ENTRYPOINT")
 headers = {"Authorization": f"Bearer {token}"}
-while True:
+retry=5
+while True and retry > 0:
   res = requests.get(f"{endpoint}/{name}", headers=headers)
   if res.status_code != 200:
     print(f"error: Status code != 200, {res.status_code}")
@@ -43,7 +44,10 @@ while True:
     status = payload["status"]["health"]["status"]
     if status == "Healthy":
       raise SystemExit(0)
-    if status != "Progressing":
+    if status == "Missing":
+      print(f"Health status error: {status} then retry {retry}")
+      retry -= 1
+    if status != "Progressing" and status != "Missing":
       print(f"Health status error: {status}")
       raise SystemExit(1)
     else:
