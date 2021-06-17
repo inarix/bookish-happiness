@@ -264,6 +264,8 @@ then
     fi
 
     echo "[$(date +"%m/%d/%y %T")] Waiting for ${APPLICATION_NAME} to be Healthy!"
+    # WAIT FOR SYNC TO START ! (AVOID STATUS MISSING !!)
+    sleep 2
     waitForHealthy
     
     if [[ $? == 1 ]]
