@@ -184,6 +184,7 @@ function generateApplicationSpec() {
   if [[ $WORKER_ENV == "staging" ]]
   then
     NODE_SELECTOR="$NODE_SELECTOR-$WORKER_ENV"
+    MODEL_NAME="${MODEL_NAME}-staging"
   fi
 
   cat > data.json <<EOF 
