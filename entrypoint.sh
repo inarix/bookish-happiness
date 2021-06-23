@@ -84,7 +84,7 @@ function registerModel {
   else
     # <@UNT6EB562> is Artemis User
     echo "$MODEL_VERSION_ID"
-    sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered new model version of $REPOSITORY (version=$MODEL_VERSION_ID) on $WORKER_ENV environment" $THREAD_TS > /dev/null
+    sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered new model version of $REPOSITORY (model instance=$MODEL_VERSION_ID) on $WORKER_ENV environment" $THREAD_TS > /dev/null
   fi
 
 }
