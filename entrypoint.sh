@@ -81,8 +81,10 @@ function registerModel {
     # <@USVDXF4KS> is Me (Alexandre Saison)
     sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE" $THREAD_TS > /dev/null
     sendSlackMessage "MODEL_DEPLOYMENT" "Error: $(echo $REGISTER_RESPONSE | jq )" $THREAD_TS > /dev/null
-    echo "Error > $REGISTER_RESPONSE"
+    echo "[ERROR] Error > $REGISTER_RESPONSE"
+    echo "[ERROR] Error > $(echo $REGISTER_RESPONSE | jq )"
     exit 1
+    return -1
   else
     # <@UNT6EB562> is Artemis User
     echo "$MODEL_VERSION_ID"
@@ -285,11 +287,13 @@ then
     fi
     echo "::endgroup::"
     
-
-
     echo "::group::Model registration"
     MODEL_INSTANCE_ID=$(registerModel $THREAD_TS)
-
+    if [[ $MODEL_INSTANCE_ID == "-1" ]]
+    then
+      sendSlackMessage "MODEL DEPLOYMENT" "An error occured when registering model" $THREAD_TS
+      exit 1
+    fi
     echo "::set-output name=modelInstanceId::${MODEL_INSTANCE_ID}"
     rm data.json
     exit 0
