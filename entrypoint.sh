@@ -80,6 +80,7 @@ function registerModel {
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
     sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE" $THREAD_TS > /dev/null
+    sendSlackMessage "MODEL_DEPLOYMENT" "Error: $(echo $REGISTER_RESPONSE | jq )" $THREAD_TS > /dev/null
     exit 1
   else
     # <@UNT6EB562> is Artemis User
