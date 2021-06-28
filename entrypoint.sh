@@ -1,9 +1,4 @@
-#!/bin/bash 
-# File              : entrypoint.sh
-# Author            : Alexandre Saison <alexandre.saison@inarix.com>
-# Date              : 25.05.2021
-# Last Modified Date: 03.06.2021
-# Last Modified By  : Alexandre Saison <alexandre.saison@inarix.com>
+#!/bin/bash
 if [[ -f .env ]]
 then
   export $(grep -v '^#' .env | xargs)
@@ -16,7 +11,7 @@ fi
 # 1. Creation of local variables
 export MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
 export MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
-export APPLICATION_NAME="$WORKER_ENV-mt-$MODEL_NAME"
+export APPLICATION_NAME=$(echo "mt-$MODEL_NAME" | awk '{print tolower($0)}')
 export REPOSITORY=$(echo "$GITHUB_REPOSITORY" | cut -d "/" -f2)
 
 function fromEnvToJson {
@@ -29,9 +24,42 @@ content = [x.strip().split('=') for x in content if '=' in x]
 print(json.dumps(dict(content)))"
 }
 
+function waitForHealthy {
+  python -c '
+import os
+import requests
+import time
+name = os.environ.get("APPLICATION_NAME")
+token = os.environ.get("ARGOCD_TOKEN")
+endpoint = os.environ.get("ARGOCD_ENTRYPOINT")
+headers = {"Authorization": f"Bearer {token}"}
+retry=5
+while True and retry > 0:
+  res = requests.get(f"{endpoint}/{name}", headers=headers)
+  if res.status_code != 200:
+    print(f"error: Status code != 200, {res.status_code}")
+    raise SystemExit(1)
+  payload = res.json()
+  if "status" in payload and "health" in payload["status"] and "status" in payload["status"]["health"]:
+    status = payload["status"]["health"]["status"]
+    if status == "Healthy":
+      raise SystemExit(0)
+    elif status == "Missing":
+      print(f"Health status error: {status} then retry {retry}")
+      retry -= 1
+    elif status != "Progressing":
+      print(f"Health status error: {status}")
+      raise SystemExit(1)
+  else:
+    print("Invalid payload returned from ArgoCD")
+    raise SystemExit(1)
+  time.sleep(1)
+  '
+}
+
 # 2. Declaring functions
 function registerModel {
-  THREAD_TS=$1
+  local THREAD_TS=$1
   
   local REGISTER_RESPONSE=""
   local metadata=$(fromEnvToJson | jq '. + { ci : {source: "Github Action"} }')
@@ -51,12 +79,14 @@ function registerModel {
   if [[ "${MODEL_VERSION_ID}" = "null" ]]
   then
     # <@USVDXF4KS> is Me (Alexandre Saison)
-    sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE"  > /dev/null
+    sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE" $THREAD_TS > /dev/null
+    sendSlackMessage "MODEL_DEPLOYMENT" "Error: $(echo $REGISTER_RESPONSE | jq )" $THREAD_TS > /dev/null
+    echo "Error > $REGISTER_RESPONSE"
     exit 1
   else
     # <@UNT6EB562> is Artemis User
     echo "$MODEL_VERSION_ID"
-    sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered new model version of $REPOSITORY (version=$MODEL_VERSION_ID) on Inarix API!" > /dev/null
+    sendSlackMessage "MODEL_DEPLOYMENT"  "Succefully registered new model version of $REPOSITORY (model instance=$MODEL_VERSION_ID) on $WORKER_ENV environment" $THREAD_TS > /dev/null
   fi
 
 }
@@ -89,7 +119,7 @@ function sendSlackMessage {
       RESPONSE=$(curl -d @./payload.json -X POST -H "Content-Type: application/json" -H "Authorization: Bearer ${SLACK_API_TOKEN}" https://slack.com/api/chat.postMessage)
 
       #Use the jq linux command to simply get access to the ts value for the object response from $RESPONSE
-      THREAD_TS=$(echo "$RESPONSE" | jq .ts)
+      THREAD_TS=$(echo "$RESPONSE" | jq -r .ts)
 
       #Return script value as the THREAD_TS for future responses
       echo $THREAD_TS
@@ -152,14 +182,12 @@ function checkEnvVariables() {
 function generateApplicationSpec() {
   local NODE_SELECTOR="nutshell"
   local VERSION="${MODEL_VERSION:1}"
-  local MODEL_NAME=$NUTSHELL_MODEL_SERVING_NAME
 
   if [[ $WORKER_ENV == "staging" ]]
   then
     NODE_SELECTOR="$NODE_SELECTOR-$WORKER_ENV"
     MODEL_NAME="${MODEL_NAME}-staging"
   fi
-
 
   cat > data.json <<EOF 
 { "metadata": { "name": "$APPLICATION_NAME", "namespace": "default" },
@@ -171,8 +199,9 @@ function generateApplicationSpec() {
                     { "name": "app.datadog.apiKey", "value": "$DD_API_KEY" },
                     { "name": "app.datadog.appKey", "value": "$DD_APP_KEY" },
                     { "name": "app.env", "value": "$WORKER_ENV" },
-                    { "name": "credentials.api.password", "value": "$INARIX_PASSWORD" },
+                    { "name": "credentials.api.hostname", "value": "$INARIX_HOSTNAME" },
                     { "name": "credentials.api.username", "value": "$INARIX_USERNAME" },
+                    { "name": "credentials.api.password", "value": "$INARIX_PASSWORD" },
                     { "name": "credentials.aws.accessKey", "value": "$AWS_ACCESS_KEY_ID" },
                     { "name": "credentials.aws.secretKey", "value": "$AWS_SECRET_ACCESS_KEY" },
                     { "name": "image.imageName", "value": "$REPOSITORY" },
@@ -210,11 +239,12 @@ function createApplicationSpec() {
 
 # 3. Script starts now
 
-echo "[$(date +"%m/%d/%y %T")] checking functions.sh"
+echo "::group::Check env variables"
 checkEnvVariables
+echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
+echo "::endgroup::"
 
 echo "[$(date +"%m/%d/%y %T")] Deploying model $REPOSITORY:$MODEL_VERSION"
-echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 
 THREAD_TS=$(sendSlackMessage "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
 CREATE_RESPONSE=$(createApplicationSpec)
@@ -225,29 +255,48 @@ then
     exit 1
 fi
 
-HAS_ERROR=$(echo $CREATE_RESPONSE | jq .error )
+HAS_ERROR=$(echo $CREATE_RESPONSE | jq -e .error )
 
 if [[ -n $HAS_ERROR ]]
 then
+    echo "::group::ArgoCD ${APPLICATION_NAME} creation"
     echo "[$(date +"%m/%d/%y %T")] Creation of application specs succeed!"
-    sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}"
+    sendSlackMessage "MODEL_DEPLOYMENT" "Application has been created and will now be synced on ${ARGOCD_ENTRYPOINT}/${APPLICATION_NAME}" $THREAD_TS
     SYNC_RESPONSE=$(syncApplicationSpec)
     HAS_ERROR=$(echo $SYNC_RESPONSE | jq -e .error )
-    
+
     if [[ $HAS_ERROR == 1 ]]
     then
-        echo "[$(date +"%m/%d/%y %T")] An error occured during $APPLICATION_NAME sync! Error: $HAS_ERROR"
+        echo "[$(date +"%m/%d/%y %T")] An error occured during $APPLICATION_NAME sync! Error: $HAS_ERROR" $THREAD_TS
         exit 1
     fi
-    echo "[$(date +"%m/%d/%y %T")] Application sync succeed!"
 
+    echo "[$(date +"%m/%d/%y %T")] Waiting for ${APPLICATION_NAME} to be Healthy!"
+    # WAIT FOR SYNC TO START ! (AVOID STATUS MISSING !!)
+    sleep 2
+    waitForHealthy
+    
+    if [[ $? == 1 ]]
+    then
+      echo "[$(date +"%m/%d/%y %T")] Application creation failed!"
+      exit 1
+    else 
+      echo "[$(date +"%m/%d/%y %T")] Application sync succeed!"
+    fi
+    echo "::endgroup::"
+    
+
+
+    echo "::group::Model registration"
     MODEL_INSTANCE_ID=$(registerModel $THREAD_TS)
 
     echo "::set-output name=modelInstanceId::${MODEL_INSTANCE_ID}"
     rm data.json
+    exit 0
+    echo "::endgroup::"
 else
     echo "[$(date +"%m/%d/%y %T")] An error occured when creating application specs! Error: $CREATE_RESPONSE"
-    sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATION_NAME had a error during deployment: $CREATE_RESPONSE"
+    sendSlackMessage "MODEL_DEPLOYMENT" "$APPLICATION_NAME had a error during deployment: $CREATE_RESPONSE" $THREAD_TS
     rm data.json
     exit 1
 fi
