@@ -17,11 +17,19 @@ export REPOSITORY=$(echo "$GITHUB_REPOSITORY" | cut -d "/" -f2)
 function fromEnvToJson {
   python -c "
 import json
-import sys
 with open('.env', 'r') as f:
     content = f.readlines()
-content = [x.strip().split('=') for x in content if '=' in x]
-print(json.dumps(dict(content)))"
+return_value = []
+for x in content:
+    if '{' in x:
+        key, value = x.split('=')
+        result = json.dumps(json.loads(value.strip('\'')))
+        test = [key, result]
+        return_value.append(test)
+    else:
+        test = x.strip().split('=')
+        return_value.append(test)
+print(json.dumps(dict(return_value)))"
 }
 
 function waitForHealthy {
