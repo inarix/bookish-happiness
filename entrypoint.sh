@@ -23,7 +23,7 @@ return_value = []
 for x in content:
     if '{' in x:
         key, value = x.split('=')
-        result = json.dumps(json.loads(value.strip('\'')))
+        result = json.loads(value.strip('\''))
         test = [key, result]
         return_value.append(test)
     else:
