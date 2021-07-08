@@ -33,7 +33,7 @@ name = os.environ.get("APPLICATION_NAME")
 token = os.environ.get("ARGOCD_TOKEN")
 endpoint = os.environ.get("ARGOCD_ENTRYPOINT")
 headers = {"Authorization": f"Bearer {token}"}
-retry=5
+retry=10
 while True and retry > 0:
   res = requests.get(f"{endpoint}/{name}", headers=headers)
   if res.status_code != 200:
@@ -53,7 +53,7 @@ while True and retry > 0:
   else:
     print("Invalid payload returned from ArgoCD")
     raise SystemExit(1)
-  time.sleep(1)
+  time.sleep(5)
   '
 }
 
