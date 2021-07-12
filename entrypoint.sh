@@ -33,7 +33,7 @@ name = os.environ.get("APPLICATION_NAME")
 token = os.environ.get("ARGOCD_TOKEN")
 endpoint = os.environ.get("ARGOCD_ENTRYPOINT")
 headers = {"Authorization": f"Bearer {token}"}
-retry=5
+retry=10
 while True and retry > 0:
   res = requests.get(f"{endpoint}/{name}", headers=headers)
   if res.status_code != 200:
@@ -53,7 +53,7 @@ while True and retry > 0:
   else:
     print("Invalid payload returned from ArgoCD")
     raise SystemExit(1)
-  time.sleep(1)
+  time.sleep(5)
   '
 }
 
@@ -66,10 +66,10 @@ function registerModel {
   
   if [[ $WORKER_ENV == "staging" ]]
   then
-    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"${NUTSHELL_MODEL_VERSION}-staging\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:${NUTSHELL_MODEL_VERSION}-staging\", \"metadata\": $metadata}" > modelDeploymentPayload.json
+    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"${NUTSHELL_MODEL_VERSION}-staging\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:${NUTSHELL_MODEL_VERSION}-staging\",\"isDeployed\": true, \"metadata\": $metadata}" > modelDeploymentPayload.json
     REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${STAGING_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://staging.api.inarix.com/imodels/model-instance)
   else
-    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"$NUTSHELL_MODEL_VERSION\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:$NUTSHELL_MODEL_VERSION\", \"metadata\": $metadata}" > modelDeploymentPayload.json
+    echo "{ \"templateId\": $MODEL_TEMPLATE_ID, \"branchSlug\": \"$WORKER_ENV\", \"version\": \"$NUTSHELL_MODEL_VERSION\", \"dockerImageUri\": \"eu.gcr.io/$GOOGLE_PROJECT_ID/$REPOSITORY:$NUTSHELL_MODEL_VERSION\",\"isDeployed\": true,\"metadata\": $metadata}" > modelDeploymentPayload.json
     REGISTER_RESPONSE=$(curl -L -X POST -H "Authorization: Bearer ${PRODUCTION_API_TOKEN}" -H "Content-Type: application/json" -d @./modelDeploymentPayload.json https://api.inarix.com/imodels/model-instance)
   fi
 
@@ -81,8 +81,10 @@ function registerModel {
     # <@USVDXF4KS> is Me (Alexandre Saison)
     sendSlackMessage "MODEL_DEPLOYMENT" "Failed registered on Inarix API! <@USVDXF4KS> GithubAction response=$RESPONSE_CODE" $THREAD_TS > /dev/null
     sendSlackMessage "MODEL_DEPLOYMENT" "Error: $(echo $REGISTER_RESPONSE | jq )" $THREAD_TS > /dev/null
-    echo "Error > $REGISTER_RESPONSE"
+    echo "[ERROR] Error > $REGISTER_RESPONSE"
+    echo "[ERROR] Error > $(echo $REGISTER_RESPONSE | jq )"
     exit 1
+    return -1
   else
     # <@UNT6EB562> is Artemis User
     echo "$MODEL_VERSION_ID"
@@ -285,11 +287,13 @@ then
     fi
     echo "::endgroup::"
     
-
-
     echo "::group::Model registration"
     MODEL_INSTANCE_ID=$(registerModel $THREAD_TS)
-
+    if [[ $MODEL_INSTANCE_ID == "-1" ]]
+    then
+      sendSlackMessage "MODEL DEPLOYMENT" "An error occured when registering model" $THREAD_TS
+      exit 1
+    fi
     echo "::set-output name=modelInstanceId::${MODEL_INSTANCE_ID}"
     rm data.json
     exit 0
