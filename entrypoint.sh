@@ -47,8 +47,8 @@ while True and max_retry > 0:
     if status == "Healthy":
       raise SystemExit(0)
     elif status == "Missing" or status == "Degraded":
-      print(f"Health status error: {status} then retry {retry}")
-      retry -= 1
+      print(f"Health status error: {status} then retry {max_retry}")
+      max_retry -= 1
     elif status != "Progressing":
       print(f"Health status error: {status}")
       raise SystemExit(1)
