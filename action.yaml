@@ -5,6 +5,15 @@
 # Last Modified By   : Alexandre Saison <alexandre.saison@inarix.com>
 name: 'Bookish-Happiness'
 description: 'Push Nutshell to ArgoCD in PullRequest'
+inputs:
+  maxRetry: 
+    description: "Max retry of the ArgoCD application creation"
+    required: false
+    default: "15"
+  tts:
+    description: "Time To Sleep before each application status check"
+    default: "10"
+    required: false
 outputs:
   modelInstanceId: # id of output
     description: 'Register model instance id.'

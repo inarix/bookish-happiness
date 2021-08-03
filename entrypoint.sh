@@ -32,9 +32,11 @@ import time
 name = os.environ.get("APPLICATION_NAME")
 token = os.environ.get("ARGOCD_TOKEN")
 endpoint = os.environ.get("ARGOCD_ENTRYPOINT")
+max_retry = int(os.environ.get("INPUT_MAXRETRY", "10"))
+tts = int(os.environ.get("INPUT_TTS", "5"))
 headers = {"Authorization": f"Bearer {token}"}
-retry=10
-while True and retry > 0:
+print(f"tts={tts} max_retry={max_retry}")
+while True and max_retry > 0:
   res = requests.get(f"{endpoint}/{name}", headers=headers)
   if res.status_code != 200:
     print(f"error: Status code != 200, {res.status_code}")
@@ -44,7 +46,7 @@ while True and retry > 0:
     status = payload["status"]["health"]["status"]
     if status == "Healthy":
       raise SystemExit(0)
-    elif status == "Missing":
+    elif status == "Missing" or status == "Degraded":
       print(f"Health status error: {status} then retry {retry}")
       retry -= 1
     elif status != "Progressing":
@@ -53,7 +55,7 @@ while True and retry > 0:
   else:
     print("Invalid payload returned from ArgoCD")
     raise SystemExit(1)
-  time.sleep(5)
+  time.sleep(tts)
   '
 }
 
