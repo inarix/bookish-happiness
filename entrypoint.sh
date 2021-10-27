@@ -213,6 +213,7 @@ function generateApplicationSpec() {
                     { "name": "model.modelName", "value": "$MODEL_NAME" },
                     { "name": "model.nutshellName", "value": "$MODEL_NAME" },
                     { "name": "model.servingMode", "value": "$NUTSHELL_MODE" },
+                    { "name": "model.templateSlug", "value": "$LABEL_TEMPLATE_SLUG" },
                     { "name": "nodeSelector.name", "value": "$NODE_SELECTOR" },
                     { "name": "nutshell.fileLocationId", "value": "$NUTSHELL_WORKER_MODEL_FILE_LOC_ID" },
                     { "name": "nutshell.timeoutS", "value": "$NUTSHELL_WORKER_MODEL_PREDICT_TIMEOUT_S" },
