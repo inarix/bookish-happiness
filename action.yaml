@@ -6,6 +6,10 @@
 name: 'Bookish-Happiness'
 description: 'Push Nutshell to ArgoCD in PullRequest'
 inputs:
+  isProduction: 
+    description: "Defines if this is for production grade deployment"
+    required: true
+    default: "0"
   maxRetry: 
     description: "Max retry of the ArgoCD application creation"
     required: false

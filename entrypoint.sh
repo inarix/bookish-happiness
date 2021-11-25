@@ -9,10 +9,34 @@ else
 fi
 
 # 1. Creation of local variables
-export MODEL_NAME="${NUTSHELL_MODEL_SERVING_NAME}"
-export MODEL_VERSION="${NUTSHELL_MODEL_VERSION}"
+export MODEL_NAME=$NUTSHELL_MODEL_SERVING_NAME
+export MODEL_VERSION=$NUTSHELL_MODEL_VERSION
+export IS_PRODUCTION=$INPUT_ISPRODUCTION
 export APPLICATION_NAME=$(echo "mt-$MODEL_NAME" | awk '{print tolower($0)}')
 export REPOSITORY=$(echo "$GITHUB_REPOSITORY" | cut -d "/" -f2)
+
+function checkSHA {
+if [[ "$IS_PRODUCTION" == "1" ]]
+then
+echo "true"
+return 0
+fi
+MODEL_VERSION_LEN=${#1}
+if [[ "$MODEL_VERSION_LEN" -le "8" ]]
+then
+echo "false"
+return 1
+else 
+SHA_ONLY=$(echo $1 | cut -d "-" -f2)
+if [[ "${#SHA_ONLY}" -lt "6" ]]
+then
+echo "false"
+return 1
+fi
+echo "true"
+return 0
+fi
+}
 
 function fromEnvToJson {
   python -c "
@@ -248,10 +272,16 @@ echo "::group::Check env variables"
 checkEnvVariables
 echo "[$(date +"%m/%d/%y %T")] Importing every .env variable from model"
 echo "::endgroup::"
-
 echo "[$(date +"%m/%d/%y %T")] Deploying model $REPOSITORY:$MODEL_VERSION"
 
 THREAD_TS=$(sendSlackMessage "MODEL_DEPLOYMENT" "Deploy model $NUTSHELL_MODEL_SERVING_NAME with version $MODEL_VERSION")
+
+checkSHA $MODEL_VERSION
+if [[ $? == 1 ]]
+then
+    sendSlackMessage "MODEL_DEPLOYMENT" "$REPOSITORY:$MODEL_VERSION must contains contain sha when deploying in staging (e.g v1.0.0-devops)" $THREAD_TS
+fi
+
 CREATE_RESPONSE=$(createApplicationSpec)
 
 if [[ $? == 1 ]]
